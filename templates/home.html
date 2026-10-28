@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PageSpeed reports</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#172b4d;font:15px system-ui,sans-serif}main{max-width:1060px;margin:auto;padding:42px 24px}h1{font-size:32px;letter-spacing:-1px;margin:6px 0}h2{font-size:19px;margin:0 0 20px}p{line-height:1.6}.muted{color:#607086}.eyebrow{color:#2563eb;font-size:12px;font-weight:700;letter-spacing:1.5px}.layout{display:grid;grid-template-columns:1.05fr 1fr;gap:24px;margin-top:30px}.panel{background:white;border:1px solid #e3e8f0;border-radius:16px;padding:26px}fieldset{border:0;padding:0;margin:0 0 24px}legend,label.title{font-weight:600;margin-bottom:12px;display:block}.choices{display:flex;gap:10px;flex-wrap:wrap}.choice{display:flex;align-items:center;gap:8px;border:1px solid #d7deea;border-radius:8px;padding:12px;cursor:pointer}.choice:has(input:checked){background:#eff6ff;border-color:#2563eb}input[type=checkbox]{accent-color:#2563eb;width:17px;height:17px}input[type=number],input[type=password],select,textarea{font:inherit;padding:11px;border:1px solid #cbd5e1;border-radius:8px;width:100%}input[type=number]{max-width:100px}textarea{min-height:84px;resize:vertical;font-size:13px}.row{display:flex;align-items:center;gap:12px}.help{font-size:13px;color:#607086;margin:8px 0 20px}button,.button{background:#2563eb;color:white;border:0;border-radius:8px;padding:13px 18px;font:600 15px system-ui;cursor:pointer;text-decoration:none;display:inline-block}button:disabled{opacity:.5;cursor:wait}button[type=submit]{width:100%;margin-top:20px}summary{cursor:pointer;color:#607086;font-size:14px}details{border-top:1px solid #e3e8f0;padding-top:18px;margin-top:20px}details label{display:block;margin-top:16px}.progress{padding:16px;background:#eff6ff;border-radius:8px;margin-top:18px}progress{width:100%;accent-color:#2563eb}.report{padding:18px 0;border-bottom:1px solid #e3e8f0}.report:first-child{padding-top:0}.report p{margin:8px 0;font-size:13px}.badge{font-size:12px;border-radius:20px;padding:4px 9px;background:#eaf0f9;display:inline-block}.success{background:#dcfce7;color:#166534}.failure{background:#fff1f2;color:#be123c}.links{display:flex;gap:12px;margin-top:12px}.links a{font-size:13px;color:#2563eb;font-weight:600}.error{color:#be123c}.advanced-note{font-size:12px;color:#607086}.empty{padding:35px 8px;text-align:center;color:#607086}a{color:#2563eb}[hidden]{display:none!important}@media(max-width:760px){.layout{grid-template-columns:1fr}main{padding:24px 16px}.panel{padding:20px}}
+</style>
+<main>
+<div class="eyebrow">WEBSITE PERFORMANCE</div>
+<h1>PageSpeed reports</h1>
+<p class="muted">Choose your publications. Get an Excel and HTML report in a few minutes.</p>
+<div class="layout">
+<section class="panel"><h2>Create a report</h2>
+<form id="run">
+<fieldset><legend>1. Publications</legend><div class="choices">
+{% for site in config.feeds %}<label class="choice"><input class="site" type="checkbox" value="{{ site }}" checked>{{ names.get(site, site) }}</label>{% endfor %}
+</div></fieldset>
+<label class="title" for="size">2. Articles per publication</label>
+<div class="row"><input id="size" type="number" min="1" max="50" value="{{ config.sample_size }}" required><span class="muted">chosen randomly from RSS</span></div>
+<p class="help">Duplicate links are removed automatically.</p>
+<fieldset><legend>3. Test on</legend><div class="choices"><label class="choice"><input class="device" type="checkbox" value="mobile" checked>Mobile</label><label class="choice"><input class="device" type="checkbox" value="desktop" checked>Desktop</label></div></fieldset>
+<p id="estimate" class="help"></p>
+<details><summary>Advanced settings</summary>
+<label for="method">How to collect results</label><select id="method"><option value="browser">PageSpeed website (Chrome)</option><option value="api">Google API (requires available quota)</option></select>
+<div id="api-settings" hidden><label for="psi">PageSpeed API key</label><input id="psi" type="password" autocomplete="off"><label for="crux">CrUX API key (optional)</label><input id="crux" type="password" autocomplete="off"><p class="advanced-note">Keys are used only for this run. Enable the relevant APIs in your Google Cloud project.</p></div>
+{% for site, urls in config.feeds.items() %}<label for="feeds-{{ site }}">{{ names.get(site, site) }} RSS feeds</label><textarea id="feeds-{{ site }}">{{ (urls if urls is not string else [urls])|join('\n') }}</textarea>{% endfor %}
+<p class="advanced-note">One feed URL per line.</p>
+</details>
+<button id="start" type="submit">Generate report</button>
+<div id="progress-box" class="progress" hidden><progress id="progress"></progress><p id="message" role="status" aria-live="polite"></p></div>
+</form></section>
+<section class="panel"><h2>Your reports</h2><div id="history"><p class="empty">Loading reports...</p></div></section>
+</div>
+</main>
+<script>
+const token={{ token|tojson }}, message=document.getElementById('message'), button=document.getElementById('start');
+const progressBox=document.getElementById('progress-box'), bar=document.getElementById('progress');
+let running=null;
+const checked=c=>Array.from(document.querySelectorAll(c+':checked')).map(e=>e.value);
+function estimate(){const sites=checked('.site').length,size=Number(document.getElementById('size').value),devices=checked('.device').length;document.getElementById('estimate').textContent=`${sites*size} articles · ${sites*size*devices} checks`;}document.querySelectorAll('input').forEach(e=>e.addEventListener('change',estimate));estimate();
+document.getElementById('method').addEventListener('change',e=>document.getElementById('api-settings').hidden=e.target.value!=='api');
+function showProgress(r){progressBox.hidden=false;message.textContent=r.message;message.className=r.status==='Failed'?'error':'';const total=(r.samples||[]).length*(r.config?.strategies?.length||0);if(total){bar.max=total;bar.value=(r.results||[]).length;}else bar.removeAttribute('value');bar.hidden=r.status!=='Running';}
+async function history(){
+  try {
+    const response=await fetch('/runs');
+    if(!response.ok)throw Error('Could not load report history. Refresh to try again.');
+    const rows=await response.json(),box=document.getElementById('history');box.replaceChildren();
+    const older=document.createElement('details'),olderLabel=document.createElement('summary');older.append(olderLabel);let olderCount=0;
+    if(!rows.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='Your reports will appear here after your first analysis.';box.append(empty);}
+    for(const r of rows){
+      const card=document.createElement('div');card.className='report';
+      const count=(r.results||[]).filter(a=>a.Status==='OK').length;
+      const partial=(r.results||[]).filter(a=>a.Status==='Partial').length;
+      const badge=document.createElement('span');badge.className='badge '+(r.status==='Complete'?'success':r.status==='Failed'?'failure':'');
+      badge.textContent=r.status==='Complete'?'Ready':r.status==='Failed'?'No measurements collected':r.status==='Partial'?'Some measurements missing':r.status;card.append(badge);
+      const date=document.createElement('p');date.textContent=new Date(r.started||r.finished).toLocaleString();card.append(date);
+      const desc=document.createElement('p');desc.textContent=r.status==='Failed'?(r.results?.[0]?.Error||r.errors?.[0]?.Error||r.message):`${count} complete checks${partial ? ' · '+partial+' incomplete' : ''} · ${Object.keys(r.config?.feeds||{}).join(', ')}`;card.append(desc);
+      if(r.has_reports){
+        const links=document.createElement('div');links.className='links';
+        const files=(count+partial)?[['View HTML','report.html'],['Download Excel','report.xlsx']]:[['View failure details','report.html']];
+        for(const [label,file] of files){const a=document.createElement('a');a.textContent=label;a.href='/reports/'+r.id+'/'+file;links.append(a);}card.append(links);
+      }
+      if(rows.indexOf(r)>0 && ['Failed','Interrupted'].includes(r.status)){older.append(card);olderCount++;}else box.append(card);
+      if(r.status==='Running'){running=r.id;button.disabled=true;showProgress(r);}
+    }
+    if(olderCount){olderLabel.textContent=`Earlier unsuccessful runs (${olderCount})`;box.append(older);}
+  }catch(e){message.textContent=e.message;progressBox.hidden=false;}
+}
+document.getElementById('run').addEventListener('submit',async e=>{e.preventDefault();button.disabled=true;progressBox.hidden=false;bar.hidden=false;bar.removeAttribute('value');message.className='';message.textContent='Starting your report...';try{const sites=checked('.site'),strategies=checked('.device');if(!sites.length||!strategies.length)throw Error('Choose at least one publication and one device.');const feeds={};for(const site of sites){feeds[site]=document.getElementById('feeds-'+site).value.split('\n').map(s=>s.trim()).filter(Boolean);}const data={sample_size:Number(document.getElementById('size').value),strategies,feeds,collector:document.getElementById('method').value,psi_key:document.getElementById('psi').value.trim(),crux_key:document.getElementById('crux').value.trim()};const res=await fetch('/runs',{method:'POST',headers:{'Content-Type':'application/json','X-Report-Token':token},body:JSON.stringify(data)});const body=await res.json();if(!res.ok)throw Error(body.error);running=body.id;document.getElementById('psi').value='';document.getElementById('crux').value='';}catch(error){message.textContent=error.message;message.className='error';bar.hidden=true;button.disabled=false;}});
+setInterval(async()=>{if(!running)return;try{const res=await fetch('/runs/'+running);if(!res.ok)throw Error();const r=await res.json();showProgress(r);if(r.status!=='Running'){running=null;button.disabled=false;await history();}}catch(error){message.textContent='Connection interrupted. Reconnecting to your report...';}},3000);history();
+</script>
+</html>

@@ -1,0 +1,10 @@
+{
+  "collector": "browser",
+  "sample_size": 1,
+  "strategies": ["mobile", "desktop"],
+  "feeds": {
+    "TH": ["https://www.thehindu.com/feeder/default.rss", "https://www.thehindu.com/news/national/feeder/default.rss"],
+    "BL": ["https://www.thehindubusinessline.com/feeder/default.rss", "https://www.thehindubusinessline.com/markets/feeder/default.rss"],
+    "SS": ["https://sportstar.thehindu.com/feeder/default.rss", "https://sportstar.thehindu.com/cricket/feeder/default.rss"]
+  }
+}
