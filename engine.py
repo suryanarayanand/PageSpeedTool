@@ -23,9 +23,12 @@ if __name__ == "__main__":
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from report_preview import WORKBOOK_STYLE, workbook_preview_html
+from storage import ROOT, OUTPUT
 
-ROOT = Path(__file__).resolve().parent
-OUTPUT = ROOT / "reports"
+REPORT_LAYOUT_VERSION = 3
+
+WORKER_INSTANCE = uuid.uuid4().hex
 CATEGORIES = ["performance", "accessibility", "best-practices", "seo"]
 # Report name, PSI field, CrUX field, unit divisor, good maximum, moderate maximum.
 FIELD = [
@@ -263,7 +266,8 @@ def run(config, output=OUTPUT, psi_key=None, crux_key=None, progress=None, run_i
         seed = random.SystemRandom().randrange(2 ** 32)
     rng = random.Random(seed)
     state = {"id": run_id, "started": now(), "seed": seed, "config": config,
-             "status": "Running", "worker_pid": os.getpid(), "message": "Fetching feeds", "results": [], "samples": [], "errors": []}
+             "status": "Running", "worker_pid": os.getpid(), "worker_instance": WORKER_INSTANCE,
+             "message": "Fetching feeds", "results": [], "samples": [], "errors": []}
     def checkpoint(message):
         state["message"] = message
         save_json(folder / "run.json", state)
@@ -316,6 +320,7 @@ def run(config, output=OUTPUT, psi_key=None, crux_key=None, progress=None, run_i
                 row["Error"] = str(exc)
             if config["collector"] == "api":
                 add_crux(row, sample["URL"], strategy, crux_key, raw_dir, stem)
+                row.setdefault('Collection method', 'PageSpeed API')
             row.update(sample)
             row["Device"] = strategy
             row.setdefault("PageSpeed link", "https://pagespeed.web.dev/analysis?" + urllib.parse.urlencode({"url": sample["URL"], "form_factor": strategy}))
@@ -329,6 +334,12 @@ def run(config, output=OUTPUT, psi_key=None, crux_key=None, progress=None, run_i
     checkpoint(f"Report ready: {ok}/{total} successful checks." if state['status'] == 'Complete' else
                f"Partial report: {ok}/{total} complete checks. Available measurements are saved; review the missing values." if has_data else
                "No measurements collected. See failure details and retry.")
+    from progressive_report import update_progressive
+    try:
+        update_progressive(state, output)
+    except (OSError, ValueError) as exc:
+        state['history_error'] = 'The individual report is saved, but cumulative history needs to be rebuilt. ' + type(exc).__name__
+        checkpoint(state['message'] + ' ' + state['history_error'])
     return folder
 
 
@@ -435,14 +446,19 @@ def write_reports(state, folder):
         page += '<div class="panel error"><h1>No measurements collected</h1><p>This run failed. The tables below contain diagnostic details, not valid performance measurements. Retry the analysis after addressing the listed errors.</p></div>'
     page += f'<h1>RSS PageSpeed report</h1><p>{esc(state["status"])} · {esc(state["started"])} · Seed {esc(state["seed"])}</p><a class="button" href="report.xlsx">Download Excel</a><p>Real-user metrics are p75 over a rolling 28-day window. Origin data represents the whole site. N/A means unavailable. Lighthouse metrics are individual lab runs.</p><h2>Publication summary</h2>'
     page += html_table(summary_headers, summaries)
+    page += '<h2>Report by publication</h2><p>Mobile and Desktop results follow the Excel workbook. Open a sheet to view its results; scroll horizontally to see all metrics. N/A means a measurement was unavailable.</p>'
+    page += workbook_preview_html(wb)
     page += '<h2>Article results</h2><label>Filter by publication, device or URL <input id="filter" type="search" placeholder="e.g. mobile"></label><div class="grid">' + ''.join(cards) + '</div>'
     page += '<h2>Feed and audit errors</h2>' + html_table(["Publication", "Stage", "Error"], [[e[k] for k in ["Publication", "Stage", "Error"]] for e in errors])
     page += '<p>Source: <a href="https://developers.google.com/speed/docs/insights/v5/about">PageSpeed Insights</a> · <a href="https://developer.chrome.com/docs/crux/api">CrUX API</a></p></main><script>document.getElementById("filter").addEventListener("input",function(){const q=this.value.toLowerCase();document.querySelectorAll(".audit").forEach(a=>a.hidden=!a.textContent.toLowerCase().includes(q));});</script></html>'
     (folder / "report.html").write_text(page, encoding="utf-8")
-    save_json(folder / 'report_layout.json', {'version': 2, 'excel': 'reference', 'cwv_assessment': False})
+    save_json(folder / 'report_layout.json', {'version': REPORT_LAYOUT_VERSION, 'excel': 'reference', 'cwv_assessment': False})
 
 
 STYLE = """*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#17324d;font:15px system-ui,sans-serif}main{max-width:1450px;margin:auto;padding:32px}h1{font-size:34px}h2{margin-top:32px}a{color:#0369a1;overflow-wrap:anywhere}p{line-height:1.6;overflow-wrap:anywhere}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;background:white}td,th{padding:10px;text-align:left;border-bottom:1px solid #e2e8f0;min-width:100px}th{background:#17324d;color:white}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:20px;margin-top:20px}article,.panel{background:white;border:1px solid #cbd5e1;border-radius:12px;padding:22px}input,textarea,select{font:inherit;padding:10px;border:1px solid #94a3b8;border-radius:6px;max-width:100%}label{display:block;margin:14px 0}textarea{width:100%;height:165px}button,.button{display:inline-block;border:0;border-radius:6px;background:#0369a1;color:white;padding:12px 18px;text-decoration:none;font:inherit;cursor:pointer}button:disabled{opacity:.5}.error{color:#b91c1c}[hidden]{display:none!important}code{overflow-wrap:anywhere}"""
+
+
+STYLE += WORKBOOK_STYLE
 
 
 if __name__ == "__main__":

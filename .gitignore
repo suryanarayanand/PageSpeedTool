@@ -1,5 +1,16 @@
 __pycache__/
+.venv/
 reports/
+history/
+browser_profile/
 *.log
 vendor/
 server.pid
+.env
+.env.*
+!.env.cloud.example
+*.tar.gz
+_site/
+.pagespeed-data/
+artifacts/
+.DS_Store

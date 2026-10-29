@@ -1,0 +1,19 @@
+services:
+  portal:
+    build: .
+    env_file: .env.cloud
+    environment:
+      PAGESPEED_REQUIRE_HTTPS: "0"
+    ports:
+      - "127.0.0.1:5055:5055"
+    volumes:
+      - pagespeed-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5055/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  pagespeed-data:

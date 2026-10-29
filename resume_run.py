@@ -54,6 +54,8 @@ def resume(folder):
     write_reports(state, folder)
     save_json(path, state)
     print(state['status'], folder, flush=True)
+    from progressive_report import update_progressive
+    update_progressive(state, folder.parent)
     return state
 
 

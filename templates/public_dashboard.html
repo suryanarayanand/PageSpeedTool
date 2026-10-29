@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Daily PageSpeed reports</title>
+<style>{{ base_style|safe }}.report-links{display:flex;gap:12px;flex-wrap:wrap}.report-status{margin:24px 0}.report-row{padding:18px 0;border-bottom:1px solid #e2e8f0}.report-row p{margin:6px 0}.topline{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}</style>
+<main>
+<div class="topline"><h1>Daily PageSpeed reports</h1>{% if manage_url|default('/manage') %}<a href="{{ manage_url|default('/manage') }}">Run audits</a>{% endif %}</div>
+<p>View the latest measurements and the progressive Core Web Vitals report. Anyone with this link can view and download the reports.</p>
+<section class="panel report-status"><h2>Daily history</h2>
+<p id="summary" role="status">Loading report history...</p>
+<div id="downloads" class="report-links" hidden><a class="button" href="{{ progressive_prefix|default('/progressive/') }}report.html">View progressive report</a><a class="button" href="{{ progressive_prefix|default('/progressive/') }}report.xlsx">Download Excel</a></div>
+<p>Each article run adds dated rows. Earlier results are retained. N/A means a measurement was unavailable.</p>
+</section>
+<section class="panel"><h2>Daily runs</h2><label for="date-filter">Date (India time)</label><input type="date" id="date-filter"><p>Leave the date empty to see recent runs.</p><div id="runs"><p>Loading recent runs...</p></div></section>
+</main>
+<script>
+let savedRuns=[];
+const reportRoot={{ report_prefix|default('/reports/')|tojson }};
+function renderRuns(){
+    const chosen=document.getElementById('date-filter').value;
+    const filtered=chosen?savedRuns.filter(run=>run.report_date===chosen):savedRuns.slice(0,20);
+    const container=document.getElementById('runs');container.replaceChildren();
+    if(!filtered.length){const text=document.createElement('p');text.textContent=chosen?'No runs for this date.':'No audit runs yet.';container.append(text);}
+    for(const run of filtered){
+      const card=document.createElement('article');card.className='report-row';
+      const status=document.createElement('strong');status.textContent=run.status==='Complete'?'Ready':run.status==='Partial'?'Some metrics unavailable':run.status==='Failed'?'No measurements collected':run.status;card.append(status);
+      const detail=document.createElement('p');detail.textContent=`${new Date(run.started||run.finished).toLocaleString()} · ${Object.keys(run.config?.feeds||{}).join(', ')} · ${(run.results||[]).length} checks`;card.append(detail);
+      if(run.has_reports){const links=document.createElement('div');links.className='report-links';for(const [label,file] of [['View report','report.html'],['Download Excel','report.xlsx']]){const link=document.createElement('a');link.textContent=label;link.href=reportRoot+encodeURIComponent(run.id)+'/'+file;links.append(link);}card.append(links);}
+      container.append(card);
+    }
+}
+document.getElementById('date-filter').addEventListener('change',renderRuns);
+async function refresh(){
+  try{
+    const responses=await Promise.all([fetch({{ summary_url|default('/progressive/status')|tojson }},{cache:'no-cache'}),fetch({{ runs_url|default('/runs')|tojson }},{cache:'no-cache'})]);
+    if(responses.some(response=>!response.ok))throw Error('Reports could not be loaded. Retrying shortly.');
+    const [summary,runs]=await Promise.all(responses.map(response=>response.json()));
+    document.getElementById('summary').textContent=summary.runs?`${summary.days} days · ${summary.runs} runs · ${summary.articles} articles · ${summary.measured_checks}/${summary.checks} checks with measurements. Latest date: ${summary.latest_date}.`:'The first completed audit will start this report history.';
+    document.getElementById('downloads').hidden=!summary.runs;
+    savedRuns=runs;renderRuns();
+  }catch(error){document.getElementById('summary').textContent=error.message;}
+}
+refresh();setInterval(refresh,15000);
+</script>
+</html>

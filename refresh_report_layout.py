@@ -4,7 +4,7 @@ import json
 import time
 from pathlib import Path
 
-from engine import OUTPUT, ROOT, now, write_reports
+from engine import OUTPUT, ROOT, REPORT_LAYOUT_VERSION, now, write_reports
 
 
 def refresh(output):
@@ -17,7 +17,7 @@ def refresh(output):
             continue
         if marker.exists():
             version = json.loads(marker.read_text(encoding='utf-8')).get('version')
-            if version == 2 and marker.stat().st_mtime_ns >= max(excel.stat().st_mtime_ns, html.stat().st_mtime_ns):
+            if version == REPORT_LAYOUT_VERSION and marker.stat().st_mtime_ns >= max(excel.stat().st_mtime_ns, html.stat().st_mtime_ns):
                 continue
         write_reports(state, folder)
         updated.append(folder.name)

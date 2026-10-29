@@ -9,7 +9,14 @@
 <main>
 <div class="eyebrow">WEBSITE PERFORMANCE</div>
 <h1>PageSpeed reports</h1>
-<p class="muted">Choose your publications. Get an Excel and HTML report in a few minutes.</p>
+<p class="muted">Choose how many articles to check. Each completed run adds dated results to your daily report.</p>
+<p class="help">Core Web Vitals report: BenchMark · TH · BL · FL · SS · URL.<br><a href="/report-format">Preview report format</a> · <a href="/report-template.xlsx">Download Excel template</a></p>
+<section class="panel" style="margin-top:24px"><h2>Daily history</h2>
+<p>Run the selected number of articles per publication. New results are added to the progressive report and earlier days are retained.</p>
+<p id="daily-summary" class="muted" role="status">Loading daily history...</p>
+<div id="daily-links" class="links" hidden><a href="/progressive/report.html">View daily history</a><a href="/progressive/report.xlsx">Download progressive Excel</a></div>
+<button type="button" id="rebuild-history" style="margin-top:14px">Rebuild from saved runs</button>
+</section>
 <div class="layout">
 <section class="panel"><h2>Create a report</h2>
 <form id="run">
@@ -18,19 +25,20 @@
 </div></fieldset>
 <label class="title" for="size">2. Articles per publication</label>
 <div class="row"><input id="size" type="number" min="1" max="50" value="{{ config.sample_size }}" required><span class="muted">chosen randomly from RSS</span></div>
-<p class="help">Duplicate links are removed automatically.</p>
+<p class="help">Duplicate links are removed automatically. The run finishes after the selected article and device checks; results are then added to daily history.</p>
 <fieldset><legend>3. Test on</legend><div class="choices"><label class="choice"><input class="device" type="checkbox" value="mobile" checked>Mobile</label><label class="choice"><input class="device" type="checkbox" value="desktop" checked>Desktop</label></div></fieldset>
 <p id="estimate" class="help"></p>
+<p class="help">Audits run in the background. Results are saved when the selected article checks finish.</p>
 <details><summary>Advanced settings</summary>
-<label for="method">How to collect results</label><select id="method"><option value="browser">PageSpeed website (Chrome)</option><option value="api">Google API (requires available quota)</option></select>
-<div id="api-settings" hidden><label for="psi">PageSpeed API key</label><input id="psi" type="password" autocomplete="off"><label for="crux">CrUX API key (optional)</label><input id="crux" type="password" autocomplete="off"><p class="advanced-note">Keys are used only for this run. Enable the relevant APIs in your Google Cloud project.</p></div>
+<label for="method">How to collect results</label><select id="method">{% if allow_browser %}<option value="browser"{% if config.collector == 'browser' %} selected{% endif %}>PageSpeed website (background)</option>{% endif %}<option value="api"{% if config.collector == 'api' or not allow_browser %} selected{% endif %}>Google API (requires available quota)</option></select>
+<div id="api-settings"{% if config.collector != 'api' and allow_browser %} hidden{% endif %}><label for="psi">PageSpeed API key</label><input id="psi" type="password" autocomplete="off"><label for="crux">CrUX API key (optional)</label><input id="crux" type="password" autocomplete="off"><p class="advanced-note">Leave blank to use keys configured on the server. Keys entered here are used only for this run.</p></div>
 {% for site, urls in config.feeds.items() %}<label for="feeds-{{ site }}">{{ names.get(site, site) }} RSS feeds</label><textarea id="feeds-{{ site }}">{{ (urls if urls is not string else [urls])|join('\n') }}</textarea>{% endfor %}
 <p class="advanced-note">One feed URL per line.</p>
 </details>
 <button id="start" type="submit">Generate report</button>
 <div id="progress-box" class="progress" hidden><progress id="progress"></progress><p id="message" role="status" aria-live="polite"></p></div>
 </form></section>
-<section class="panel"><h2>Your reports</h2><div id="history"><p class="empty">Loading reports...</p></div></section>
+<section class="panel"><h2>Individual runs</h2><div id="history"><p class="empty">Loading reports...</p></div></section>
 </div>
 </main>
 <script>
@@ -41,6 +49,25 @@ const checked=c=>Array.from(document.querySelectorAll(c+':checked')).map(e=>e.va
 function estimate(){const sites=checked('.site').length,size=Number(document.getElementById('size').value),devices=checked('.device').length;document.getElementById('estimate').textContent=`${sites*size} articles · ${sites*size*devices} checks`;}document.querySelectorAll('input').forEach(e=>e.addEventListener('change',estimate));estimate();
 document.getElementById('method').addEventListener('change',e=>document.getElementById('api-settings').hidden=e.target.value!=='api');
 function showProgress(r){progressBox.hidden=false;message.textContent=r.message;message.className=r.status==='Failed'?'error':'';const total=(r.samples||[]).length*(r.config?.strategies?.length||0);if(total){bar.max=total;bar.value=(r.results||[]).length;}else bar.removeAttribute('value');bar.hidden=r.status!=='Running';}
+async function progressiveHistory(){
+  const label=document.getElementById('daily-summary');
+  try{
+    const response=await fetch('/progressive/status');
+    if(!response.ok)throw Error('Could not load daily history.');
+    const data=await response.json();
+    label.textContent=data.runs?`${data.days} days · ${data.runs} runs · ${data.articles} articles · ${data.measured_checks}/${data.checks} checks with measurements. Latest date: ${data.latest_date}.`:'Your first completed article run will start the daily history.';
+    document.getElementById('daily-links').hidden=!data.runs;
+  }catch(error){label.textContent=error.message;}
+}
+document.getElementById('rebuild-history').addEventListener('click',async event=>{
+  const control=event.currentTarget;control.disabled=true;
+  try{
+    const response=await fetch('/progressive/rebuild',{method:'POST',headers:{'X-Report-Token':token}});
+    const data=await response.json();if(!response.ok)throw Error(data.error);
+    await progressiveHistory();
+  }catch(error){document.getElementById('daily-summary').textContent=error.message;}
+  finally{control.disabled=false;}
+});
 async function history(){
   try {
     const response=await fetch('/runs');
@@ -56,6 +83,9 @@ async function history(){
       badge.textContent=r.status==='Complete'?'Ready':r.status==='Failed'?'No measurements collected':r.status==='Partial'?'Some measurements missing':r.status;card.append(badge);
       const date=document.createElement('p');date.textContent=new Date(r.started||r.finished).toLocaleString();card.append(date);
       const desc=document.createElement('p');desc.textContent=r.status==='Failed'?(r.results?.[0]?.Error||r.errors?.[0]?.Error||r.message):`${count} complete checks${partial ? ' · '+partial+' incomplete' : ''} · ${Object.keys(r.config?.feeds||{}).join(', ')}`;card.append(desc);
+      if(r.status==='Failed' && r.results?.[0]?.['PageSpeed link']){
+        const direct=document.createElement('a');direct.textContent='Open this check in PageSpeed';direct.href=r.results[0]['PageSpeed link'];direct.target='_blank';direct.rel='noopener';card.append(direct);
+      }
       if(r.has_reports){
         const links=document.createElement('div');links.className='links';
         const files=(count+partial)?[['View HTML','report.html'],['Download Excel','report.xlsx']]:[['View failure details','report.html']];
@@ -65,6 +95,7 @@ async function history(){
       if(r.status==='Running'){running=r.id;button.disabled=true;showProgress(r);}
     }
     if(olderCount){olderLabel.textContent=`Earlier unsuccessful runs (${olderCount})`;box.append(older);}
+    await progressiveHistory();
   }catch(e){message.textContent=e.message;progressBox.hidden=false;}
 }
 document.getElementById('run').addEventListener('submit',async e=>{e.preventDefault();button.disabled=true;progressBox.hidden=false;bar.hidden=false;bar.removeAttribute('value');message.className='';message.textContent='Starting your report...';try{const sites=checked('.site'),strategies=checked('.device');if(!sites.length||!strategies.length)throw Error('Choose at least one publication and one device.');const feeds={};for(const site of sites){feeds[site]=document.getElementById('feeds-'+site).value.split('\n').map(s=>s.trim()).filter(Boolean);}const data={sample_size:Number(document.getElementById('size').value),strategies,feeds,collector:document.getElementById('method').value,psi_key:document.getElementById('psi').value.trim(),crux_key:document.getElementById('crux').value.trim()};const res=await fetch('/runs',{method:'POST',headers:{'Content-Type':'application/json','X-Report-Token':token},body:JSON.stringify(data)});const body=await res.json();if(!res.ok)throw Error(body.error);running=body.id;document.getElementById('psi').value='';document.getElementById('crux').value='';}catch(error){message.textContent=error.message;message.className='error';bar.hidden=true;button.disabled=false;}});

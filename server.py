@@ -1,24 +1,53 @@
-"""Local web interface. Run separately from the Maestro portal on port 5055."""
+"""PageSpeed portal with local and public cloud report modes."""
 import json
 import os
 import secrets
 import threading
 import sys
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
-from flask import Flask, abort, jsonify, render_template, request, send_from_directory
-from engine import ROOT, OUTPUT, STYLE, run, validate_config, save_json
+from flask import Flask, Response, abort, jsonify, redirect, render_template, request, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
+from engine import ROOT, OUTPUT, STYLE, WORKER_INSTANCE, run, validate_config, save_json
+from runtime_config import configuration_error, server_settings
+from storage import DATA_ROOT
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 100_000
+app.config.update(server_settings())
+proxy_count = int(os.getenv('PAGESPEED_TRUSTED_PROXIES', '0'))
+if proxy_count:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=proxy_count, x_host=0, x_port=0)
 TOKEN = secrets.token_urlsafe(32)
 lock = threading.Lock()
 active = None
 
 
 @app.before_request
-def local_only():
-    if request.host.split(":")[0] not in {"127.0.0.1", "localhost"}:
+def access_policy():
+    if request.path == '/health':
+        return None
+    host = urlsplit('http://' + request.host).hostname
+    if app.config['CLOUD_MODE']:
+        error = configuration_error(app.config)
+        if error:
+            return jsonify(error=error), 503
+        if host not in app.config['ALLOWED_REPORT_HOSTS']:
+            abort(403)
+        if app.config['REQUIRE_HTTPS'] and not request.is_secure:
+            return redirect(request.url.replace('http://', 'https://', 1), code=308)
+        manage = request.path == '/manage' or request.method not in {'GET', 'HEAD', 'OPTIONS'}
+        if manage or not app.config['PUBLIC_REPORTS']:
+            auth = request.authorization
+            username = (auth.username or '') if auth and auth.type == 'basic' else ''
+            password = (auth.password or '') if auth and auth.type == 'basic' else ''
+            user_ok = secrets.compare_digest(username.encode('utf-8'), app.config['ADMIN_USERNAME'].encode('utf-8'))
+            pass_ok = secrets.compare_digest(password.encode('utf-8'), app.config['ADMIN_PASSWORD'].encode('utf-8'))
+            if not (user_ok and pass_ok):
+                return Response('Sign in to manage PageSpeed audits.', 401,
+                                {'WWW-Authenticate': 'Basic realm="PageSpeed management", charset="UTF-8"'})
+    elif host not in {'127.0.0.1', 'localhost', '::1'}:
         abort(403)
     if request.method == "POST" and not secrets.compare_digest(request.headers.get("X-Report-Token", ""), TOKEN):
         abort(403)
@@ -26,9 +55,59 @@ def local_only():
 
 @app.get("/")
 def index():
+    if app.config['CLOUD_MODE'] and app.config['PUBLIC_REPORTS']:
+        return render_template('public_dashboard.html', base_style=STYLE)
+    return management_page()
+
+
+@app.after_request
+def response_policy(response):
+    if app.config['CLOUD_MODE']:
+        response.headers.setdefault('X-Robots-Tag', 'noindex, nofollow')
+        if request.path == '/manage' or request.method not in {'GET', 'HEAD'}:
+            response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+def management_page():
     config = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
-    return render_template("home.html", token=TOKEN, config=config,
+    collector = os.getenv('PAGESPEED_COLLECTOR')
+    if collector in {'api', 'browser'}:
+        config['collector'] = collector
+    return render_template("home.html", token=TOKEN, config=config, cloud=app.config['CLOUD_MODE'],
+                           allow_browser=app.config['ALLOW_BROWSER'],
                            names={"TH": "The Hindu", "BL": "BusinessLine", "SS": "Sportstar", "FL": "Frontline"})
+
+
+@app.get('/manage')
+def manage():
+    return management_page()
+
+
+@app.get('/health')
+def health():
+    if configuration_error(app.config):
+        return jsonify(status='configuration_required'), 503
+    return jsonify(status='ok', progressive_history=True)
+
+
+@app.get("/report-format")
+def report_format():
+    from openpyxl import load_workbook
+    from excel_layout import TEMPLATE
+    from report_preview import workbook_preview_html
+    book = load_workbook(TEMPLATE)
+    try:
+        return render_template('report_format.html', preview=workbook_preview_html(book), base_style=STYLE)
+    finally:
+        book.close()
+
+
+@app.get("/report-template.xlsx")
+def report_template():
+    from excel_layout import TEMPLATE
+    return send_from_directory(TEMPLATE.parent, TEMPLATE.name, as_attachment=True,
+                               download_name='TH,BL,FL,SS- Core Web Vitals - Template.xlsx')
 
 
 @app.post("/runs")
@@ -41,6 +120,8 @@ def start():
         config = validate_config(body)
     except (ValueError, TypeError, AttributeError) as exc:
         return jsonify(error=str(exc)), 400
+    if config['collector'] == 'browser' and not app.config['ALLOW_BROWSER']:
+        return jsonify(error='This deployment uses the Google API collector. Select Google API in Advanced settings.'), 400
     if config['collector'] == 'api' and not (body.get('psi_key') or os.getenv('PAGESPEED_API_KEY')):
         return jsonify(error='Enter a PageSpeed API key, or choose PageSpeed website in Advanced settings.'), 400
     with lock:
@@ -65,6 +146,40 @@ def start():
                 active = None
     threading.Thread(target=worker, daemon=True).start()
     return jsonify(id=run_id), 202
+
+
+def progressive_summary():
+    from progressive_report import history_root, rebuild_progressive
+    path = history_root(OUTPUT) / 'summary.json'
+    if not path.exists():
+        return rebuild_progressive(OUTPUT)
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+@app.get('/progressive/status')
+def progressive_status():
+    return jsonify(progressive_summary())
+
+
+@app.post('/progressive/rebuild')
+def progressive_rebuild():
+    from progressive_report import rebuild_progressive
+    try:
+        return jsonify(rebuild_progressive(OUTPUT))
+    except (OSError, ValueError):
+        app.logger.exception('Could not rebuild daily history')
+        return jsonify(error='Could not rebuild history. Saved runs are retained; check disk access and try again.'), 500
+
+
+@app.get('/progressive/<filename>')
+def progressive_file(filename):
+    from progressive_report import history_root
+    if filename not in {'report.xlsx', 'report.html'}:
+        abort(404)
+    progressive_summary()
+    return send_from_directory(history_root(OUTPUT), filename,
+                               as_attachment=filename == 'report.xlsx',
+                               download_name='Core_Web_Vitals_Daily_History.xlsx' if filename == 'report.xlsx' else filename)
 
 
 def process_running(pid):
@@ -96,9 +211,15 @@ def process_running(pid):
 
 def read_state(path):
     state = json.loads(path.read_text(encoding="utf-8"))
-    if state.get("status") == "Running" and state.get("id") != active and not process_running(state.get('worker_pid')):
+    if state.get('id') == active and state.get('status') in {'Complete', 'Partial', 'Failed'}:
+        state.update(status='Running', message='Saving reports and daily history')
+    previous_worker = state.get('worker_instance') not in {None, WORKER_INSTANCE}
+    if state.get("status") == "Running" and state.get("id") != active and (previous_worker or not process_running(state.get('worker_pid'))):
         state.update(status="Interrupted", message="Server stopped before completion. Start a new run; collected data is retained.")
     state["has_reports"] = (path.parent / "report.html").exists() and (path.parent / "report.xlsx").exists()
+    if state.get('started'):
+        from progressive_report import run_date
+        state['report_date'] = run_date(state).isoformat()
     return state
 
 
@@ -127,8 +248,14 @@ def report(run_id, filename):
 
 
 if __name__ == "__main__":
-    (ROOT / 'server.pid').write_text(str(os.getpid()), encoding='utf-8')
-    print("Open http://127.0.0.1:5055 in your browser", flush=True)
+    error = configuration_error(app.config)
+    if error:
+        raise SystemExit(error)
+    DATA_ROOT.mkdir(parents=True, exist_ok=True)
+    (DATA_ROOT / 'server.pid').write_text(str(os.getpid()), encoding='utf-8')
+    port = int(os.getenv('PORT', os.getenv('PAGESPEED_PORT', '5055')))
+    host = '0.0.0.0' if app.config['CLOUD_MODE'] else '127.0.0.1'
+    print(f'PageSpeed portal listening on {host}:{port}', flush=True)
     sys.path.insert(0, str(ROOT / "vendor"))
     from waitress import serve
-    serve(app, host="127.0.0.1", port=int(os.getenv("PAGESPEED_PORT", "5055")), threads=4)
+    serve(app, host=host, port=port, threads=4)

@@ -1,12 +1,13 @@
 import json
+from io import BytesIO
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from openpyxl import load_workbook
 import engine
 import server
-from browser_collector import parse_visible, visible_number
+from browser_collector import collect, collect_once, parse_visible, visible_number
 
 RSS = b'<rss><channel><item><title>=bad &lt;script&gt;</title><link>https://example.com/a#top</link></item><item><link>https://example.com/a</link></item><item><link>https://example.com/b</link></item></channel></rss>'
 
@@ -23,6 +24,168 @@ def response():
 
 
 class ReporterTests(unittest.TestCase):
+    def test_mac_uses_headless_chrome_and_reuses_a_dedicated_profile(self):
+        import browser_collector
+        from playwright.sync_api import Error as BrowserError
+        with tempfile.TemporaryDirectory() as tmp, patch.object(browser_collector, 'ROOT', Path(tmp)), \
+                patch('browser_collector.sys.platform', 'darwin'), patch('playwright.sync_api.sync_playwright') as start:
+            launch = start.return_value.__enter__.return_value.chromium.launch_persistent_context
+            launch.side_effect = BrowserError('Launch did not complete')
+            for _ in range(2):
+                with self.assertRaises(engine.FetchError):
+                    collect_once('https://example.com/a', 'mobile', Path(tmp), 'audit')
+            profiles = [call.kwargs['user_data_dir'] for call in launch.call_args_list]
+            self.assertEqual(profiles, [str(Path(tmp) / 'browser_profile')] * 2)
+            self.assertTrue(Path(profiles[0]).is_dir())
+            self.assertTrue(launch.call_args.kwargs['headless'])
+            self.assertTrue(launch.call_args.kwargs['chromium_sandbox'])
+
+    def test_blocked_pagespeed_request_is_identified_and_network_keys_are_not_saved(self):
+        from types import SimpleNamespace
+        context, page, tab = MagicMock(), MagicMock(), MagicMock()
+        context.pages = [page]
+        tab.is_visible.return_value = False
+        page.locator.side_effect = lambda selector: tab if selector == '#mobile_tab' else page
+        page.inner_text.return_value = 'Unable to resolve https://example.com/a. Try checking the URL for validity.'
+        def event(name, callback):
+            if name == 'requestfailed':
+                callback(SimpleNamespace(url='https://content-pagespeedonline.googleapis.com/v5/test?key=private-key',
+                                         failure='net::ERR_BLOCKED_BY_CLIENT'))
+        page.on.side_effect = event
+        with tempfile.TemporaryDirectory() as tmp, patch('playwright.sync_api.sync_playwright') as start, patch('browser_collector.sys.platform', 'linux'):
+            launch = start.return_value.__enter__.return_value.chromium.launch_persistent_context
+            launch.return_value = context
+            with self.assertRaisesRegex(engine.FetchError, 'managed browser extension blocked') as raised:
+                collect('https://example.com/a', 'mobile', Path(tmp), 'audit')
+            self.assertEqual(raised.exception.status, 403)
+            launch.assert_called_once()
+            evidence = (Path(tmp) / 'audit_network.json').read_text()
+            self.assertIn('ERR_BLOCKED_BY_CLIENT', evidence)
+            self.assertNotIn('private-key', evidence)
+            self.assertNotIn('?key=', evidence)
+
+    def test_mac_network_diagnostics_distinguish_dns_proxy_and_quota_errors(self):
+        from browser_collector import network_problem, network_url
+        self.assertIn('hostname on this Mac', network_problem([{'error': 'net::ERR_NAME_NOT_RESOLVED'}])[0])
+        self.assertIn('certificate or proxy', network_problem([{'error': 'net::ERR_TUNNEL_CONNECTION_FAILED'}])[0])
+        self.assertEqual(network_problem([{'status': 429}])[1], 429)
+        self.assertEqual(network_url('https://user:password@example.com/path?key=private#fragment'), 'https://example.com/path')
+
+    def test_report_format_preview_and_blank_excel_download(self):
+        client = server.app.test_client()
+        page = client.get('/report-format')
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b'This is a blank format preview', page.data)
+        for name in ('BenchMark', 'TH', 'BL', 'FL', 'SS', 'URL'):
+            self.assertIn(f'<summary>{name}</summary>'.encode(), page.data)
+        response = client.get('/report-template.xlsx')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('attachment', response.headers['Content-Disposition'])
+        book = load_workbook(BytesIO(response.data))
+        self.assertEqual(book.sheetnames, ['BenchMark', 'TH', 'BL', 'FL', 'SS', 'URL'])
+        for name in ('TH', 'BL', 'FL', 'SS'):
+            self.assertTrue(all(cell.value is None for row in book[name].iter_rows(min_row=4) for cell in row))
+        book.close()
+        response.close()
+        self.assertIn(b'/report-format', client.get('/').data)
+
+    def test_workbook_web_view_preserves_headers_values_and_escapes_untrusted_content(self):
+        from excel_layout import TEMPLATE
+        from report_preview import workbook_preview_html
+        from openpyxl.comments import Comment
+        book = load_workbook(TEMPLATE)
+        book['TH']['B4'] = 2.3
+        book['TH']['G4'] = 58
+        book['TH']['B4'].comment = Comment('<img src=x onerror=alert(1)>', 'test')
+        book['URL']['B2'] = '<script>alert(1)</script>'
+        book['URL']['B2'].hyperlink = 'javascript:alert(1)'
+        page = workbook_preview_html(book)
+        self.assertIn('colspan="14"', page)
+        self.assertIn('background:#00B0F0', page)
+        self.assertIn('background:#FFFF00', page)
+        self.assertIn('>2.3</td>', page)
+        self.assertIn('>58</td>', page)
+        self.assertIn('&lt;script&gt;', page)
+        self.assertNotIn('<script>', page)
+        self.assertNotIn('<img', page)
+        self.assertNotIn('href="javascript:', page)
+        book.close()
+
+    def test_rejected_article_is_reported_without_retrying_or_waiting_for_tabs(self):
+        context, page, tab = MagicMock(), MagicMock(), MagicMock()
+        context.pages = [page]
+        tab.is_visible.return_value = False
+        evidence = 'PageSpeed Insights\nUnable to resolve https://example.com/a. Try checking the URL for validity.'
+        page.locator.side_effect = lambda selector: tab if selector == '#mobile_tab' else page
+        page.inner_text.return_value = evidence
+        with tempfile.TemporaryDirectory() as tmp, patch('playwright.sync_api.sync_playwright') as start, patch('browser_collector.sys.platform', 'linux'):
+            launch = start.return_value.__enter__.return_value.chromium.launch_persistent_context
+            launch.return_value = context
+            with self.assertRaisesRegex(engine.FetchError, 'Google PageSpeed could not resolve') as raised:
+                collect('https://example.com/a', 'mobile', Path(tmp), 'audit')
+            self.assertEqual(raised.exception.status, 400)
+            launch.assert_called_once()
+            tab.wait_for.assert_not_called()
+            self.assertEqual((Path(tmp) / 'audit_failure.txt').read_text(), evidence)
+            context.close.assert_called_once()
+
+    def test_transient_browser_failure_still_retries(self):
+        row = engine.extract_psi(response())
+        with patch('browser_collector.collect_once', side_effect=[engine.FetchError('Temporary connection failure'), row]) as attempt:
+            self.assertEqual(collect('https://example.com/a', 'mobile', Path('.'), 'audit'), row)
+            self.assertEqual(attempt.call_count, 2)
+
+    def test_browser_launch_failure_explains_policy_and_removes_temporary_profile(self):
+        from playwright.sync_api import Error as BrowserError
+
+        with tempfile.TemporaryDirectory() as tmp, patch('playwright.sync_api.sync_playwright') as start, patch('browser_collector.sys.platform', 'linux'):
+            launch = start.return_value.__enter__.return_value.chromium.launch_persistent_context
+            launch.side_effect = BrowserError('Browser closed before connecting')
+            with self.assertRaisesRegex(engine.FetchError, 'ask IT.*Google API'):
+                collect_once('https://example.com/a', 'mobile', Path(tmp), 'audit')
+            options = launch.call_args.kwargs
+            self.assertTrue(options['chromium_sandbox'])
+            for flag in ('--disable-extensions', '--disable-component-extensions-with-background-pages',
+                         '--disable-background-networking', '--disable-component-update'):
+                self.assertIn(flag, options['ignore_default_args'])
+            profile = Path(options['user_data_dir'])
+            self.assertTrue(profile.name.startswith('pagespeed-chrome-'))
+            self.assertFalse(profile.exists())
+
+    def test_browser_collection_writes_evidence_and_cleans_up_context(self):
+        context = MagicMock()
+        page, tab, panel = MagicMock(), MagicMock(), MagicMock()
+        context.pages = [page]
+        page.url = 'https://pagespeed.web.dev/analysis/example/report?form_factor=mobile'
+        tab.get_attribute.return_value = 'true'
+        panel.is_visible.return_value = True
+        panel.inner_text.return_value = 'selected device measurements'
+        page.locator.side_effect = lambda selector: (
+            tab if selector == '#mobile_tab' else panel if selector.startswith('[role=') else page
+        )
+        page.inner_text.return_value = 'full page evidence'
+        page.content.return_value = '<html>full page evidence</html>'
+        row = engine.extract_psi(response())
+        profiles = []
+
+        def launch(**options):
+            profile = Path(options['user_data_dir'])
+            self.assertTrue(profile.is_dir())
+            profiles.append(profile)
+            return context
+
+        with tempfile.TemporaryDirectory() as tmp, patch('playwright.sync_api.sync_playwright') as start, patch('browser_collector.sys.platform', 'linux'), \
+                patch('browser_collector.parse_visible', return_value=row) as parse:
+            start.return_value.__enter__.return_value.chromium.launch_persistent_context.side_effect = launch
+            result = collect_once('https://example.com/a', 'mobile', Path(tmp), 'audit')
+            self.assertEqual(result, row)
+            parse.assert_called_once_with('selected device measurements', 'https://example.com/a',
+                                          'mobile', 'URL', page.url)
+            self.assertEqual((Path(tmp) / 'audit_page.txt').read_text(), 'full page evidence')
+            self.assertEqual(json.loads((Path(tmp) / 'audit_browser.json').read_text()), row)
+            context.close.assert_called_once()
+        self.assertFalse(profiles[0].exists())
+
     def test_browser_values_preserve_field_lab_and_assessment(self):
         self.assertEqual(visible_number('First Contentful Paint\n850 ms\n', 'First Contentful Paint', unit='s'), .85)
         self.assertEqual(visible_number('Total Blocking Time\n1.2 s\n', 'Total Blocking Time', unit='ms'), 1200)
@@ -155,6 +318,9 @@ Emulated Moto G Power with Lighthouse 13.4.1
             content = (folder / 'report.html').read_text(encoding='utf-8')
             self.assertIn('&lt;script&gt;', content)
             self.assertIn('report.xlsx', content)
+            self.assertIn('Report by publication', content)
+            self.assertIn('<summary>TH</summary>', content)
+            self.assertIn('background:#00B0F0', content)
             self.assertNotIn('CWV passed', content)
             self.assertNotIn('Core Web Vitals:', content)
             self.assertNotIn('assessment', content)
@@ -213,7 +379,8 @@ Emulated Moto G Power with Lighthouse 13.4.1
         partial.update(Status='Partial', Performance=None, Error='Google Lighthouse is overloaded.')
         # Resume should not request already collected data.
         with tempfile.TemporaryDirectory() as tmp:
-            folder = Path(tmp)
+            folder = Path(tmp) / 'run'
+            folder.mkdir()
             (folder / 'raw').mkdir()
             sample = {'Publication': 'TH', 'URL': 'https://example.com/a', 'Title': 'A', 'RSS feed': 'https://example.com/feed'}
             rows = [dict(good, **sample, Device='mobile', **{'PageSpeed link': 'https://pagespeed.web.dev/'}), dict(partial, **sample, Device='desktop', **{'PageSpeed link': 'https://pagespeed.web.dev/'})]
