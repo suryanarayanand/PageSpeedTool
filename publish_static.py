@@ -9,7 +9,7 @@ import uuid
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from engine import ROOT, OUTPUT, STYLE, write_reports
+from engine import ROOT, OUTPUT, STYLE, METRICS, write_reports
 from progressive_report import history_root, rebuild_progressive, run_date
 
 
@@ -33,6 +33,29 @@ def publish_site(destination, output=OUTPUT, repository=None):
         shutil.copyfile(history / 'report.xlsx', stage / 'progressive/report.xlsx')
         progressive = (history / 'report.html').read_text(encoding='utf-8')
         progressive = progressive.replace('href="/"', 'href="../index.html"')
+        # An open progressive report must notice a newly published daily run.
+        # A query version also keeps an old browser/CDN cache entry out of the
+        # navigation to the updated report.
+        revision = json.dumps(summary['updated'])
+        refresh_script = """<script>
+const renderedRevision=__REVISION__;
+setInterval(async()=>{
+  try{
+    const statusURL=new URL('../data/summary.json',window.location.href);
+    statusURL.searchParams.set('_refresh',String(Date.now()));
+    const response=await fetch(statusURL.href,{cache:'no-store'});
+    if(!response.ok)return;
+    const status=await response.json();
+    if(status.updated&&status.updated!==renderedRevision){
+      const reportURL=new URL(window.location.href);
+      reportURL.searchParams.set('v',status.updated);
+      reportURL.searchParams.set('_refresh',String(Date.now()));
+      window.location.replace(reportURL.href);
+    }
+  }catch(error){/* Keep the displayed report available during a connection interruption. */}
+},60000);
+</script>""".replace('__REVISION__', revision)
+        progressive = progressive.replace('</html>', refresh_script + '</html>')
         (stage / 'progressive/report.html').write_text(progressive, encoding='utf-8')
         public_runs = []
         for state in states:
@@ -50,6 +73,10 @@ def publish_site(destination, output=OUTPUT, repository=None):
                 'finished': state.get('finished'), 'report_date': run_date(state).isoformat(),
                 'config': {'feeds': {site: [] for site in state['config']['feeds']}},
                 'results': [{'Status': row['Status']} for row in state['results']], 'has_reports': True,
+                'measured_checks': sum(any(row.get(metric) is not None for metric in METRICS)
+                                       for row in state['results']),
+                'first_error': next((str(row['Error'])[:1500] for row in
+                                     state['results'] + state.get('errors', []) if row.get('Error')), ''),
             })
         (stage / 'data/summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
         (stage / 'data/runs.json').write_text(json.dumps(public_runs, indent=2), encoding='utf-8')

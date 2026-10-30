@@ -10,14 +10,16 @@
 <p>View the latest measurements and the progressive Core Web Vitals report. Anyone with this link can view and download the reports.</p>
 <section class="panel report-status"><h2>Daily history</h2>
 <p id="summary" role="status">Loading report history...</p>
-<div id="downloads" class="report-links" hidden><a class="button" href="{{ progressive_prefix|default('/progressive/') }}report.html">View progressive report</a><a class="button" href="{{ progressive_prefix|default('/progressive/') }}report.xlsx">Download Excel</a></div>
+<div id="downloads" class="report-links" hidden><a id="progressive-html" class="button" href="{{ progressive_prefix|default('/progressive/') }}report.html">View progressive report</a><a id="progressive-excel" class="button" href="{{ progressive_prefix|default('/progressive/') }}report.xlsx">Download Excel</a></div>
 <p>Each article run adds dated rows. Earlier results are retained. N/A means a measurement was unavailable.</p>
 </section>
 <section class="panel"><h2>Daily runs</h2><label for="date-filter">Date (India time)</label><input type="date" id="date-filter"><p>Leave the date empty to see recent runs.</p><div id="runs"><p>Loading recent runs...</p></div></section>
 </main>
 <script>
-let savedRuns=[];
+let savedRuns=[], publishedRevision='';
 const reportRoot={{ report_prefix|default('/reports/')|tojson }};
+function versionedLink(path){const url=new URL(path,window.location.href);if(publishedRevision)url.searchParams.set('v',publishedRevision);return url.href;}
+function freshJSON(path,stamp){const url=new URL(path,window.location.href);url.searchParams.set('_refresh',stamp);return fetch(url.href,{cache:'no-store'});}
 function renderRuns(){
     const chosen=document.getElementById('date-filter').value;
     const filtered=chosen?savedRuns.filter(run=>run.report_date===chosen):savedRuns.slice(0,20);
@@ -26,22 +28,27 @@ function renderRuns(){
     for(const run of filtered){
       const card=document.createElement('article');card.className='report-row';
       const status=document.createElement('strong');status.textContent=run.status==='Complete'?'Ready':run.status==='Partial'?'Some metrics unavailable':run.status==='Failed'?'No measurements collected':run.status;card.append(status);
-      const detail=document.createElement('p');detail.textContent=`${new Date(run.started||run.finished).toLocaleString()} · ${Object.keys(run.config?.feeds||{}).join(', ')} · ${(run.results||[]).length} checks`;card.append(detail);
-      if(run.has_reports){const links=document.createElement('div');links.className='report-links';for(const [label,file] of [['View report','report.html'],['Download Excel','report.xlsx']]){const link=document.createElement('a');link.textContent=label;link.href=reportRoot+encodeURIComponent(run.id)+'/'+file;links.append(link);}card.append(links);}
+      const checks=run.results||[],measured=Number.isInteger(run.measured_checks)?run.measured_checks:checks.filter(row=>['OK','Partial'].includes(row.Status)).length;
+      const detail=document.createElement('p');detail.textContent=`${new Date(run.started||run.finished).toLocaleString()} · ${Object.keys(run.config?.feeds||{}).join(', ')} · ${measured}/${checks.length} checks with measurements`;card.append(detail);
+      if(run.first_error){const error=document.createElement('p');error.textContent=run.first_error;card.append(error);}
+      if(run.has_reports){const links=document.createElement('div');links.className='report-links';for(const [label,file] of [['View report','report.html'],['Download Excel','report.xlsx']]){const link=document.createElement('a');link.textContent=label;link.href=versionedLink(reportRoot+encodeURIComponent(run.id)+'/'+file);links.append(link);}card.append(links);}
       container.append(card);
     }
 }
 document.getElementById('date-filter').addEventListener('change',renderRuns);
 async function refresh(){
   try{
-    const responses=await Promise.all([fetch({{ summary_url|default('/progressive/status')|tojson }},{cache:'no-cache'}),fetch({{ runs_url|default('/runs')|tojson }},{cache:'no-cache'})]);
+    const stamp=String(Date.now());
+    const responses=await Promise.all([freshJSON({{ summary_url|default('/progressive/status')|tojson }},stamp),freshJSON({{ runs_url|default('/runs')|tojson }},stamp)]);
     if(responses.some(response=>!response.ok))throw Error('Reports could not be loaded. Retrying shortly.');
     const [summary,runs]=await Promise.all(responses.map(response=>response.json()));
+    publishedRevision=summary.updated||'';
+    for(const id of ['progressive-html','progressive-excel']){const link=document.getElementById(id);link.href=versionedLink(link.getAttribute('href'));}
     document.getElementById('summary').textContent=summary.runs?`${summary.days} days · ${summary.runs} runs · ${summary.articles} articles · ${summary.measured_checks}/${summary.checks} checks with measurements. Latest date: ${summary.latest_date}.`:'The first completed audit will start this report history.';
     document.getElementById('downloads').hidden=!summary.runs;
     savedRuns=runs;renderRuns();
   }catch(error){document.getElementById('summary').textContent=error.message;}
 }
-refresh();setInterval(refresh,15000);
+refresh();setInterval(refresh,60000);
 </script>
 </html>

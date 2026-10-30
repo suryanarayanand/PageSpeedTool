@@ -13,4 +13,5 @@ server.pid
 _site/
 .pagespeed-data/
 artifacts/
+cloud_diagnostics/
 .DS_Store
