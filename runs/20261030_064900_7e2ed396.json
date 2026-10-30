@@ -1,0 +1,98 @@
+{
+  "config": {
+    "collector": "browser",
+    "feeds": {
+      "TH": [
+        "https://www.thehindu.com/feeder/default.rss",
+        "https://www.thehindu.com/news/national/feeder/default.rss"
+      ]
+    },
+    "sample_size": 1,
+    "seed": null,
+    "strategies": [
+      "mobile",
+      "desktop"
+    ]
+  },
+  "errors": [],
+  "finished": "2026-10-30T06:49:26+00:00",
+  "id": "20261030_064900_7e2ed396",
+  "message": "No measurements collected. See failure details and retry.",
+  "results": [
+    {
+      "Accessibility": null,
+      "Best Practices": null,
+      "CLS": null,
+      "CWV assessment": "Unavailable",
+      "Device": "mobile",
+      "Error": "A PageSpeed service request returned HTTP 429. Check service access or quota before retrying. Network evidence is saved with the run.",
+      "FCP (s)": null,
+      "Field URL": "",
+      "Field period": "",
+      "Field source": "Unavailable",
+      "Final URL": "",
+      "INP (ms)": null,
+      "LCP (s)": null,
+      "Lab CLS": null,
+      "Lab FCP (s)": null,
+      "Lab LCP (s)": null,
+      "Lab Speed Index (s)": null,
+      "Lab TBT (ms)": null,
+      "Lighthouse version": "",
+      "Measured UTC": "2026-10-30T06:49:15+00:00",
+      "PageSpeed link": "https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fwww.thehindu.com%2Fnews%2Fnational%2Fkarnataka%2Fplan-to-take-power-cables-underground-in-bid-to-give-cleaner-look-to-streets-in-kalaburagi%2Farticle71640509.ece&form_factor=mobile",
+      "Performance": null,
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/feeder/default.rss",
+      "SEO": null,
+      "Status": "Error",
+      "TTFB (s)": null,
+      "Title": "Plan to take power cables underground in bid to give cleaner look to streets in Kalaburagi, emulate Varanasi",
+      "URL": "https://www.thehindu.com/news/national/karnataka/plan-to-take-power-cables-underground-in-bid-to-give-cleaner-look-to-streets-in-kalaburagi/article71640509.ece",
+      "Warnings": ""
+    },
+    {
+      "Accessibility": null,
+      "Best Practices": null,
+      "CLS": null,
+      "CWV assessment": "Unavailable",
+      "Device": "desktop",
+      "Error": "A PageSpeed service request returned HTTP 429. Check service access or quota before retrying. Network evidence is saved with the run.",
+      "FCP (s)": null,
+      "Field URL": "",
+      "Field period": "",
+      "Field source": "Unavailable",
+      "Final URL": "",
+      "INP (ms)": null,
+      "LCP (s)": null,
+      "Lab CLS": null,
+      "Lab FCP (s)": null,
+      "Lab LCP (s)": null,
+      "Lab Speed Index (s)": null,
+      "Lab TBT (ms)": null,
+      "Lighthouse version": "",
+      "Measured UTC": "2026-10-30T06:49:26+00:00",
+      "PageSpeed link": "https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fwww.thehindu.com%2Fnews%2Fnational%2Fkarnataka%2Fplan-to-take-power-cables-underground-in-bid-to-give-cleaner-look-to-streets-in-kalaburagi%2Farticle71640509.ece&form_factor=desktop",
+      "Performance": null,
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/feeder/default.rss",
+      "SEO": null,
+      "Status": "Error",
+      "TTFB (s)": null,
+      "Title": "Plan to take power cables underground in bid to give cleaner look to streets in Kalaburagi, emulate Varanasi",
+      "URL": "https://www.thehindu.com/news/national/karnataka/plan-to-take-power-cables-underground-in-bid-to-give-cleaner-look-to-streets-in-kalaburagi/article71640509.ece",
+      "Warnings": ""
+    }
+  ],
+  "samples": [
+    {
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/feeder/default.rss",
+      "Title": "Plan to take power cables underground in bid to give cleaner look to streets in Kalaburagi, emulate Varanasi",
+      "URL": "https://www.thehindu.com/news/national/karnataka/plan-to-take-power-cables-underground-in-bid-to-give-cleaner-look-to-streets-in-kalaburagi/article71640509.ece"
+    }
+  ],
+  "seed": 536854044,
+  "started": "2026-10-30T06:49:00+00:00",
+  "status": "Failed"
+}
