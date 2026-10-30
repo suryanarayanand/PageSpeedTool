@@ -64,6 +64,56 @@ def validate_url(url):
     return urllib.parse.urlunsplit(p._replace(fragment=""))
 
 
+def google_api_failure(error, url):
+    """Return a safe Google reason code and guidance, excluding raw bodies and keys."""
+    host = (urllib.parse.urlsplit(url).hostname or '').lower()
+    if host != 'googleapis.com' and not host.endswith('.googleapis.com'):
+        return ''
+    api = 'Chrome UX Report API' if host == 'chromeuxreport.googleapis.com' else 'PageSpeed Insights API'
+    try:
+        payload = json.loads(error.read(16384))
+    except (ValueError, UnicodeError, OSError):
+        return 'Google API returned no structured error details. Check API access and network/proxy policies.'
+    body = payload.get('error', {}) if isinstance(payload, dict) else {}
+    if not isinstance(body, dict):
+        return ''
+    reasons = []
+    for field in ('details', 'errors'):
+        entries = body.get(field, [])
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            reason = entry.get('reason') if isinstance(entry, dict) else None
+            if isinstance(reason, str) and re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{0,99}', reason):
+                reasons.append(reason)
+    hints = {
+        'API_KEY_SERVICE_BLOCKED': f'The key\'s API restrictions do not permit {api}. Allow that API for this key.',
+        'SERVICE_DISABLED': f'Enable {api} in the Google Cloud project that owns this key.',
+        'accessNotConfigured': f'Enable {api} in the Google Cloud project that owns this key.',
+        'API_KEY_HTTP_REFERRER_BLOCKED': 'The key is restricted to browser referrers. Use a key permitted for this server-side workflow.',
+        'API_KEY_IP_ADDRESS_BLOCKED': 'The key\'s IP restrictions do not allow the computer or cloud runner making this request.',
+        'API_KEY_INVALID': 'Google rejected the key. Enter only a current API key from the intended enabled project.',
+        'CONSUMER_INVALID': 'Check the Google Cloud project that owns this API key.',
+        'CREDENTIALS_MISSING': 'Google did not receive the required credentials. Enter an enabled API key.',
+        'BILLING_DISABLED': 'Review this API\'s access requirements in the Google Cloud project.',
+        'RATE_LIMIT_EXCEEDED': 'This Google project has reached a rate limit. Review its quota and wait for the relevant rate window before retrying.',
+        'rateLimitExceeded': 'This Google project has reached a rate limit. Review its quota before retrying.',
+        'dailyLimitExceeded': 'This Google project has reached its daily quota. Review its quota before retrying.',
+    }
+    for reason in reasons:
+        if reason in hints:
+            return f'Google reason: {reason}. {hints[reason]}'
+    # Unknown server-provided text can contain credentials. Persist only a
+    # bounded reason code rather than the raw error message or metadata.
+    safe_codes = [reason for reason in reasons if re.fullmatch(r'[A-Z][A-Z0-9_]{0,79}', reason)]
+    if safe_codes:
+        return 'Google reason: ' + ', '.join(dict.fromkeys(safe_codes)) + '.'
+    status = body.get('status')
+    if isinstance(status, str) and re.fullmatch(r'[A-Z][A-Z_]{0,99}', status):
+        return 'Google status: ' + status + '. Check API enablement and key restrictions in the key\'s project.'
+    return ''
+
+
 def fetch(url, payload=None, timeout=120, attempts=3):
     """Bounded retries; never include request URLs (which may contain keys) in errors."""
     data = json.dumps(payload).encode() if payload is not None else None
@@ -83,7 +133,9 @@ def fetch(url, payload=None, timeout=120, attempts=3):
                         403: "Access denied. Check API enablement/key restrictions or feed access.",
                         400: "Request rejected. Check URL and API key.",
                         404: "No data or resource found."}
-            error = FetchError(f"HTTP {status}: {messages.get(status, 'Service request failed.')}", status)
+            details = google_api_failure(exc, url)
+            error = FetchError(f"HTTP {status}: {messages.get(status, 'Service request failed.')}" +
+                               (' ' + details if details else ''), status)
             if status not in {429, 500, 502, 503, 504} or attempt == attempts - 1:
                 raise error from None
             retry_after = exc.headers.get("Retry-After", "")

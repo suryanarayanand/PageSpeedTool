@@ -24,6 +24,41 @@ def response():
 
 
 class ReporterTests(unittest.TestCase):
+    def test_google_api_permission_error_preserves_reason_without_exposing_credentials(self):
+        import urllib.error
+        error_body = {'error': {'code': 403, 'message': 'Rejected secret-test-key',
+                               'details': [{'reason': 'API_KEY_SERVICE_BLOCKED',
+                                            'metadata': {'api_key': 'secret-test-key'}}]}}
+        failure = urllib.error.HTTPError('https://www.googleapis.com/', 403, 'Forbidden', {},
+                                         BytesIO(json.dumps(error_body).encode()))
+        with patch('engine.urllib.request.urlopen', side_effect=failure) as request:
+            with self.assertRaises(engine.FetchError) as raised:
+                engine.fetch('https://www.googleapis.com/pagespeedonline/v5/runPagespeed?key=secret-test-key')
+        self.assertEqual(raised.exception.status, 403)
+        self.assertIn('API_KEY_SERVICE_BLOCKED', str(raised.exception))
+        self.assertIn('PageSpeed Insights API', str(raised.exception))
+        self.assertNotIn('secret-test-key', str(raised.exception))
+        request.assert_called_once()
+
+    def test_google_disabled_service_identifies_the_api_that_needs_enabling(self):
+        import urllib.error
+        payload = {'error': {'details': [{'reason': 'SERVICE_DISABLED'}]}}
+        failure = urllib.error.HTTPError('https://chromeuxreport.googleapis.com/', 403, 'Forbidden', {},
+                                         BytesIO(json.dumps(payload).encode()))
+        with patch('engine.urllib.request.urlopen', side_effect=failure):
+            with self.assertRaisesRegex(engine.FetchError, 'Enable Chrome UX Report API'):
+                engine.fetch('https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=test-key')
+
+    def test_feed_denials_do_not_copy_untrusted_response_bodies_into_reports(self):
+        import urllib.error
+        failure = urllib.error.HTTPError('https://example.com/feed', 403, 'Forbidden', {},
+                                         BytesIO(b'<html>private-body</html>'))
+        with patch('engine.urllib.request.urlopen', side_effect=failure):
+            with self.assertRaises(engine.FetchError) as raised:
+                engine.fetch('https://example.com/feed')
+        self.assertNotIn('private-body', str(raised.exception))
+        self.assertNotIn('Google reason', str(raised.exception))
+
     def test_mac_uses_headless_chrome_and_reuses_a_dedicated_profile(self):
         import browser_collector
         from playwright.sync_api import Error as BrowserError
