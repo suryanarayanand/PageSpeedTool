@@ -47,7 +47,7 @@ class StaticCloudTests(unittest.TestCase):
             update_progressive(saved_run('second', '2026-10-28T09:00:00+00:00', score=42), output)
             result = publish_site(site, output, 'owner/PageSpeedTool')
             self.assertEqual(result['runs'], 2)
-            page = (site / 'index.html').read_text()
+            page = (site / 'index.html').read_text(encoding='utf-8')
             self.assertIn('data/summary.json', page)
             self.assertIn('data/runs.json', page)
             self.assertIn('date-filter', page)
@@ -60,16 +60,16 @@ class StaticCloudTests(unittest.TestCase):
                 if not link.startswith(('https://', '#')):
                     self.assertFalse(link.startswith('/'), link)
                     self.assertTrue((site / link).is_file(), link)
-            runs = json.loads((site / 'data/runs.json').read_text())
+            runs = json.loads((site / 'data/runs.json').read_text(encoding='utf-8'))
             self.assertEqual([row['report_date'] for row in runs], ['2026-10-28', '2026-10-27'])
             self.assertNotIn('worker_pid', json.dumps(runs))
             self.assertTrue((site / 'reports/first/report.xlsx').is_file())
-            self.assertIn('href="../index.html"', (site / 'progressive/report.html').read_text())
+            self.assertIn('href="../index.html"', (site / 'progressive/report.html').read_text(encoding='utf-8'))
             book = load_workbook(site / 'progressive/report.xlsx')
             self.assertEqual([book['TH'].cell(row, 7).value for row in (4, 5)], [90, 42])
             book.close()
             publish_site(site, output, 'owner/PageSpeedTool')
-            self.assertEqual(json.loads((site / 'data/summary.json').read_text())['runs'], 2)
+            self.assertEqual(json.loads((site / 'data/summary.json').read_text(encoding='utf-8'))['runs'], 2)
             if shutil.which('node'):
                 script = re.search(r'<script>(.*?)</script>', page, re.S).group(1)
                 subprocess.run([shutil.which('node'), '--check'], input=script, text=True, capture_output=True, check=True)
@@ -78,10 +78,10 @@ class StaticCloudTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             destination = Path(tmp) / 'existing'
             destination.mkdir()
-            (destination / 'user.txt').write_text('keep this')
+            (destination / 'user.txt').write_text('keep this', encoding='utf-8')
             with self.assertRaises(ValueError):
                 publish_site(destination, Path(tmp) / 'reports')
-            self.assertEqual((destination / 'user.txt').read_text(), 'keep this')
+            self.assertEqual((destination / 'user.txt').read_text(encoding='utf-8'), 'keep this')
 
     def test_history_branch_retains_days_without_changing_the_source_branch(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -91,7 +91,7 @@ class StaticCloudTests(unittest.TestCase):
             subprocess.run(['git', 'init', str(repository)], capture_output=True, check=True)
             def git(*args):
                 return subprocess.run(['git', '-C', str(repository), *args], capture_output=True, text=True, check=True).stdout.strip()
-            (repository / 'source.txt').write_text('application source')
+            (repository / 'source.txt').write_text('application source', encoding='utf-8')
             git('add', 'source.txt')
             git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', 'commit', '-m', 'Source')
             git('remote', 'add', 'origin', str(remote))
@@ -106,14 +106,14 @@ class StaticCloudTests(unittest.TestCase):
             self.assertFalse(push_history(repository, output)['changed'])
             second_output = root / 'second-runner/reports'
             self.assertEqual(restore_history(repository, second_output), 1)
-            restored = (history_root(second_output) / 'runs/first.json').read_text()
+            restored = (history_root(second_output) / 'runs/first.json').read_text(encoding='utf-8')
             self.assertNotIn('worker_pid', restored)
             self.assertNotIn('private-secret', restored)
             update_progressive(saved_run('second', '2026-10-28T09:00:00+00:00'), second_output)
             self.assertEqual(push_history(repository, second_output)['runs'], 2)
             self.assertEqual(restore_history(repository, output), 2)
             self.assertEqual(git('rev-parse', 'HEAD'), source_head)
-            self.assertEqual((repository / 'source.txt').read_text(), 'application source')
+            self.assertEqual((repository / 'source.txt').read_text(encoding='utf-8'), 'application source')
             self.assertEqual(git('status', '--porcelain'), '')
 
 
