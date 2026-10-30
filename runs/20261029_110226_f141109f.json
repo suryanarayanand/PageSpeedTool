@@ -1,0 +1,102 @@
+{
+  "config": {
+    "collector": "browser",
+    "feeds": {
+      "TH": [
+        "https://www.thehindu.com/feeder/default.rss",
+        "https://www.thehindu.com/news/national/feeder/default.rss"
+      ]
+    },
+    "sample_size": 1,
+    "seed": null,
+    "strategies": [
+      "mobile",
+      "desktop"
+    ]
+  },
+  "errors": [],
+  "finished": "2026-10-29T11:04:45+00:00",
+  "id": "20261029_110226_f141109f",
+  "message": "Report ready: 2/2 successful checks.",
+  "results": [
+    {
+      "Accessibility": 81,
+      "Best Practices": 54,
+      "CLS": 0.01,
+      "CWV assessment": "Failed",
+      "Collection method": "PageSpeed website",
+      "Device": "mobile",
+      "Error": "",
+      "FCP (s)": 1.7,
+      "Field URL": "https://www.thehindu.com",
+      "Field period": "Latest 28-day period (as displayed)",
+      "Field source": "PageSpeed website / Origin",
+      "Final URL": "",
+      "INP (ms)": 189.0,
+      "LCP (s)": 2.5,
+      "Lab CLS": 0.171,
+      "Lab FCP (s)": 14.5,
+      "Lab LCP (s)": 35.1,
+      "Lab Speed Index (s)": 14.9,
+      "Lab TBT (ms)": 4270.0,
+      "Lighthouse version": "13.5.0",
+      "Measured UTC": "2026-10-29T11:04:41+00:00",
+      "PageSpeed captured time": "Oct 29, 2026, 4:32 PM GMT+5:30",
+      "PageSpeed link": "https://pagespeed.web.dev/analysis/https-www-thehindu-com-news-national-pil-challenges-indias-gender-identity-regime-post-nalsa-says-regime-discriminatory-to-biological-females-article71639485-ece/vcnnwikd1d?form_factor=mobile",
+      "Performance": 18,
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/feeder/default.rss",
+      "SEO": 100,
+      "Status": "OK",
+      "TTFB (s)": 0.6,
+      "Title": "Document change regime developed following NALSA ‘grossly discriminatory’ against ‘biological females’: PIL",
+      "URL": "https://www.thehindu.com/news/national/pil-challenges-indias-gender-identity-regime-post-nalsa-says-regime-discriminatory-to-biological-females/article71639485.ece",
+      "Warnings": "Values match the displayed PageSpeed precision. CWV assessment is taken from the website."
+    },
+    {
+      "Accessibility": 82,
+      "Best Practices": 54,
+      "CLS": 0.04,
+      "CWV assessment": "Passed",
+      "Collection method": "PageSpeed website",
+      "Device": "desktop",
+      "Error": "",
+      "FCP (s)": 1.2,
+      "Field URL": "https://www.thehindu.com",
+      "Field period": "Latest 28-day period (as displayed)",
+      "Field source": "PageSpeed website / Origin",
+      "Final URL": "",
+      "INP (ms)": 101.0,
+      "LCP (s)": 1.7,
+      "Lab CLS": 0.026,
+      "Lab FCP (s)": 3.8,
+      "Lab LCP (s)": 11.0,
+      "Lab Speed Index (s)": 5.7,
+      "Lab TBT (ms)": 1560.0,
+      "Lighthouse version": "13.5.0",
+      "Measured UTC": "2026-10-29T11:04:45+00:00",
+      "PageSpeed captured time": "Oct 29, 2026, 4:32 PM GMT+5:30",
+      "PageSpeed link": "https://pagespeed.web.dev/analysis/https-www-thehindu-com-news-national-pil-challenges-indias-gender-identity-regime-post-nalsa-says-regime-discriminatory-to-biological-females-article71639485-ece/vcnnwikd1d?form_factor=desktop",
+      "Performance": 26,
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/feeder/default.rss",
+      "SEO": 100,
+      "Status": "OK",
+      "TTFB (s)": 0.7,
+      "Title": "Document change regime developed following NALSA ‘grossly discriminatory’ against ‘biological females’: PIL",
+      "URL": "https://www.thehindu.com/news/national/pil-challenges-indias-gender-identity-regime-post-nalsa-says-regime-discriminatory-to-biological-females/article71639485.ece",
+      "Warnings": "Values match the displayed PageSpeed precision. CWV assessment is taken from the website."
+    }
+  ],
+  "samples": [
+    {
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/feeder/default.rss",
+      "Title": "Document change regime developed following NALSA ‘grossly discriminatory’ against ‘biological females’: PIL",
+      "URL": "https://www.thehindu.com/news/national/pil-challenges-indias-gender-identity-regime-post-nalsa-says-regime-discriminatory-to-biological-females/article71639485.ece"
+    }
+  ],
+  "seed": 1373645037,
+  "started": "2026-10-29T11:02:26+00:00",
+  "status": "Complete"
+}
