@@ -23,6 +23,11 @@ name: Daily PageSpeed reports
         default: auto
         type: choice
         options: [auto, api, browser]
+      rss_feeds:
+        description: 'Optional RSS feeds as JSON, e.g. {"BL":["https://example.com/feed.rss"]}. Blank keeps configured feeds.'
+        required: false
+        default: ''
+        type: string
       run_audit:
         description: Collect new measurements (disable to publish existing history only)
         default: true
@@ -60,6 +65,7 @@ jobs:
       PUBLICATIONS: ${{ inputs.publications || vars.PAGESPEED_PUBLICATIONS || 'TH,BL,SS' }}
       DEVICES: ${{ inputs.devices || vars.PAGESPEED_DEVICES || 'both' }}
       COLLECTOR: ${{ inputs.collector || vars.PAGESPEED_COLLECTOR || 'auto' }}
+      RSS_FEEDS: ${{ inputs.rss_feeds || vars.PAGESPEED_RSS_FEEDS || '' }}
     steps:
       - name: Check out the application
         uses: actions/checkout@v7

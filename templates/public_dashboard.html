@@ -8,6 +8,15 @@
 <main>
 <div class="topline"><h1>Daily PageSpeed reports</h1>{% if manage_url|default('/manage') %}<a href="{{ manage_url|default('/manage') }}">Run audits</a>{% endif %}</div>
 <p>View the latest measurements and the progressive Core Web Vitals report. Anyone with this link can view and download the reports.</p>
+{% if repository_url %}
+<section class="panel report-status"><h2>Change settings and run</h2>
+<p>Open the GitHub run form to change articles per publication, publications, devices, collection method, or RSS feeds. GitHub runs the audit in the cloud, even when your Mac is off.</p>
+<p><a class="button" href="{{ manage_url }}">Change settings in GitHub</a></p>
+<p>Sign in to GitHub with repository write access, click <strong>Run workflow</strong>, edit the settings, and leave <strong>Collect new measurements</strong> enabled to collect new data. Click <strong>Run workflow</strong> to start.</p>
+<p>For future daily runs, change <a href="{{ repository_url }}/settings/variables/actions">daily defaults</a>. To change saved RSS feeds, open <a href="{{ repository_url }}/blob/HEAD/config.json">feed configuration</a> and use GitHub's edit button.</p>
+<p>Completed measurements stay in history. A new audit collects updated values.</p>
+</section>
+{% endif %}
 <section class="panel report-status"><h2>Daily history</h2>
 <p id="summary" role="status">Loading report history...</p>
 <div id="downloads" class="report-links" hidden><a id="progressive-html" class="button" href="{{ progressive_prefix|default('/progressive/') }}report.html">View progressive report</a><a id="progressive-excel" class="button" href="{{ progressive_prefix|default('/progressive/') }}report.xlsx">Download Excel</a></div>

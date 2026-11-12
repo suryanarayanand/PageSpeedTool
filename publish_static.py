@@ -85,6 +85,7 @@ setInterval(async()=>{
         page = environment.get_template('public_dashboard.html').render(
             base_style=STYLE, manage_url=manager, progressive_prefix='progressive/',
             report_prefix='reports/', summary_url='data/summary.json', runs_url='data/runs.json',
+            repository_url=f'https://github.com/{repository}' if repository else None,
         )
         (stage / 'index.html').write_text(page, encoding='utf-8')
         (stage / '.nojekyll').touch()

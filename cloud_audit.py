@@ -11,6 +11,17 @@ def audit_config(environment=None):
     environment = os.environ if environment is None else environment
     config = json.loads((ROOT / 'config.json').read_text(encoding='utf-8'))
     config['sample_size'] = int(environment.get('ARTICLE_COUNT') or config['sample_size'])
+    feeds_text = environment.get('RSS_FEEDS', '').strip()
+    if feeds_text:
+        try:
+            feeds = json.loads(feeds_text)
+        except json.JSONDecodeError:
+            raise ValueError('RSS feeds must be a JSON object, for example {"BL": ["https://example.com/feed.rss"]}.') from None
+        if not isinstance(feeds, dict):
+            raise ValueError('RSS feeds must be a JSON object keyed by publication name.')
+        if feeds:
+            overrides = validate_config(dict(config, feeds=feeds))['feeds']
+            config['feeds'].update(overrides)
     sites = environment.get('PUBLICATIONS', '').strip()
     if sites:
         requested = [name.strip() for name in sites.split(',') if name.strip()]

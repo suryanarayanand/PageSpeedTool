@@ -20,9 +20,29 @@ Use **Run audits** on the public portal to open the workflow form. GitHub requir
 
 Choose the article count per publication, publications, devices, and collector. **Auto** uses the PageSpeed API when a `PAGESPEED_API_KEY` secret is present; otherwise it uses a headless browser on the GitHub Windows runner. No Chrome window opens on the viewer's computer. **API** requires the repository secret; **Browser** needs no PageSpeed API key.
 
+The portal's **Change settings in GitHub** button opens this form from any device.
+Click **Run workflow** above the workflow runs to reveal the editable inputs.
+Leave **Collect new measurements** enabled when you want new results; disabling
+it republishes existing history without collecting data. Viewing a completed run
+shows the settings it already used. To change them, start a new workflow run.
+
+Use the optional **RSS feeds as JSON** input to replace feeds for selected
+publications for a run. For example:
+
+```json
+{"BL": ["https://www.thehindubusinessline.com/markets/feeder/default.rss"]}
+```
+
+Unspecified publications keep their configured feeds. To add a publication such
+as `FL`, supply its feed in this JSON and include `FL` in **Publications**. These
+inputs do not edit `config.json` or historical report values. To permanently
+change feed configuration, use the portal's **feed configuration** link, edit
+`config.json` on GitHub, and commit the change.
+
 Runs finish after the selected article/device checks. Each completed run adds dated rows to the progressive report. Google failures remain N/A, alongside earlier valid results. Source snapshots are preserved in `report-history`; rebuilding the same run does not duplicate it. The application source branch is not modified by data updates.
 
-Frontline must have an RSS feed added to `config.json` before `FL` can be selected.
+Frontline must have an RSS feed supplied in the RSS input, the
+`PAGESPEED_RSS_FEEDS` repository variable, or `config.json` before `FL` can be selected.
 
 ## Daily updates
 
@@ -37,8 +57,12 @@ Set these repository **Settings → Secrets and variables → Actions → Variab
 | `PAGESPEED_PUBLICATIONS` | `TH,BL,SS` | Configured publications to sample |
 | `PAGESPEED_DEVICES` | `both` | `both`, `mobile`, or `desktop` |
 | `PAGESPEED_COLLECTOR` | `auto` | `auto`, `api`, or `browser` |
+| `PAGESPEED_RSS_FEEDS` | Empty | Optional publication-to-feed JSON, in the same format as the manual RSS input |
 
-Manual form inputs apply to that run. Repository variables control scheduled runs. GitHub may require re-enabling schedules on forks or inactive repositories.
+Manual form inputs apply to that run. A blank RSS input uses `PAGESPEED_RSS_FEEDS`
+when set; enter `{}` to use only `config.json` for a manual run. Repository
+variables control scheduled runs. GitHub may require re-enabling schedules on
+forks or inactive repositories.
 
 Optional repository **Secrets** are `PAGESPEED_API_KEY` and `CRUX_API_KEY`. Enable the relevant Google APIs before using those keys. They are never entered into the public website or committed to the history branch. The browser collector can operate without these keys.
 

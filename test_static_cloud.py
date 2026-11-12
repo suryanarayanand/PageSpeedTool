@@ -62,6 +62,30 @@ class StaticCloudTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit_config({'PUBLICATIONS': 'FL'})
 
+    def test_cloud_run_can_change_feeds_and_add_a_publication_without_editing_saved_config(self):
+        from cloud_audit import ROOT
+        config_file = ROOT / 'config.json'
+        original = config_file.read_bytes()
+        configured = json.loads(original)
+        overrides = {'BL': ['https://example.com/markets.rss'], 'FL': 'https://example.com/frontline.rss'}
+        config = audit_config({'ARTICLE_COUNT': '4', 'PUBLICATIONS': 'BL,FL,TH',
+                               'DEVICES': 'desktop', 'COLLECTOR': 'browser',
+                               'RSS_FEEDS': json.dumps(overrides)})
+        self.assertEqual(config['sample_size'], 4)
+        self.assertEqual(config['strategies'], ['desktop'])
+        self.assertEqual(list(config['feeds']), ['BL', 'FL', 'TH'])
+        self.assertEqual(config['feeds']['BL'], overrides['BL'])
+        self.assertEqual(config['feeds']['FL'], [overrides['FL']])
+        self.assertEqual(config['feeds']['TH'], configured['feeds']['TH'])
+        self.assertEqual(config_file.read_bytes(), original)
+        self.assertEqual(audit_config({'RSS_FEEDS': '{}'}), audit_config({}))
+
+    def test_cloud_run_rejects_invalid_feed_overrides(self):
+        for feeds in ['not JSON', '[]', 'null', '{"BL": []}', '{"BL": ["file:///tmp/feed.rss"]}',
+                      '{"Errors": "https://example.com/rss"}']:
+            with self.subTest(feeds=feeds), self.assertRaises(ValueError):
+                audit_config({'RSS_FEEDS': feeds})
+
     def test_static_portal_supports_project_urls_daily_filter_and_excel_downloads(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / 'reports'
@@ -77,6 +101,9 @@ class StaticCloudTests(unittest.TestCase):
             self.assertNotIn('127.0.0.1', page)
             self.assertNotIn("fetch('/", page)
             self.assertIn('https://github.com/owner/PageSpeedTool/actions/workflows/daily-pages.yml', page)
+            self.assertIn('Change settings in GitHub', page)
+            self.assertIn('https://github.com/owner/PageSpeedTool/settings/variables/actions', page)
+            self.assertIn('https://github.com/owner/PageSpeedTool/blob/HEAD/config.json', page)
             links = Links()
             links.feed(page)
             for link in links.links:
