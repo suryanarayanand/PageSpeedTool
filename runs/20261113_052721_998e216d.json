@@ -1,0 +1,66 @@
+{
+  "config": {
+    "collector": "api",
+    "feeds": {
+      "TH": [
+        "https://www.thehindu.com/feeder/default.rss",
+        "https://www.thehindu.com/news/national/feeder/default.rss"
+      ]
+    },
+    "sample_size": 1,
+    "seed": null,
+    "strategies": [
+      "mobile"
+    ]
+  },
+  "errors": [],
+  "finished": "2026-11-13T05:28:16+00:00",
+  "id": "20261113_052721_998e216d",
+  "message": "Partial report: 0/1 complete checks. Available measurements are saved; review the missing values.",
+  "results": [
+    {
+      "Accessibility": 37.0,
+      "Best Practices": null,
+      "CLS": null,
+      "CWV assessment": "Unavailable",
+      "Collection method": "PageSpeed API",
+      "Device": "mobile",
+      "Error": "Lighthouse returned no performance score",
+      "FCP (s)": null,
+      "Field URL": "",
+      "Field period": "",
+      "Field source": "Unavailable",
+      "Final URL": "chrome-error://chromewebdata/",
+      "INP (ms)": null,
+      "LCP (s)": null,
+      "Lab CLS": 0.0464905504684613,
+      "Lab FCP (s)": null,
+      "Lab LCP (s)": null,
+      "Lab Speed Index (s)": null,
+      "Lab TBT (ms)": null,
+      "Lighthouse version": "13.6.0",
+      "Measured UTC": "2026-11-13T05:27:23.262Z",
+      "PageSpeed link": "https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fwww.thehindu.com%2Fnews%2Fcities%2FHyderabad%2Fevery-role-in-it-is-getting-its-ai-powered-version%2Farticle71694371.ece&form_factor=mobile",
+      "Performance": null,
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/news/national/feeder/default.rss",
+      "SEO": null,
+      "Status": "Error",
+      "TTFB (s)": null,
+      "Title": "‘Every role in IT is getting its AI-powered version’",
+      "URL": "https://www.thehindu.com/news/cities/Hyderabad/every-role-in-it-is-getting-its-ai-powered-version/article71694371.ece",
+      "Warnings": "The page loaded too slowly to finish within the time limit. Results may be incomplete.; The page may not be loading as expected because your test URL (https://www.thehindu.com/news/cities/Hyderabad/every-role-in-it-is-getting-its-ai-powered-version/article71694371.ece) was redirected to chrome-error://chromewebdata/. Try testing the second URL directly.; Real-user data unavailable. Configure CRUX_API_KEY to query CrUX directly."
+    }
+  ],
+  "samples": [
+    {
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/news/national/feeder/default.rss",
+      "Title": "‘Every role in IT is getting its AI-powered version’",
+      "URL": "https://www.thehindu.com/news/cities/Hyderabad/every-role-in-it-is-getting-its-ai-powered-version/article71694371.ece"
+    }
+  ],
+  "seed": 3603133853,
+  "started": "2026-11-13T05:27:21+00:00",
+  "status": "Partial"
+}
