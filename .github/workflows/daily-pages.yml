@@ -30,7 +30,6 @@ name: Daily PageSpeed reports
   schedule:
      - cron: '30 3 * * *'   # 9:00 AM IST
      - cron: '30 12 * * *'  # 6:00 PM IST
-     - cron: '30 3 * * *'
 
 permissions:
   contents: read
