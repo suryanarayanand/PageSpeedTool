@@ -65,7 +65,7 @@ error while other checks continue. Browser collection keeps its separate
 documented per-device waits. The workflow does not impose a collection-time
 budget on the whole article-count run.
 
-The default schedule starts daily at **09:00 India time (03:30 UTC)**. GitHub can delay scheduled jobs; this is not a guaranteed execution time. Each run still uses an article count, with no fixed collection-time window. GitHub's overall job-duration limit also applies.
+The default schedule starts twice daily at **09:00 India time (03:30 UTC)** and **18:00 India time (12:30 UTC)**. Each run adds its own dated results to the report history. GitHub can delay scheduled jobs; these are not guaranteed execution times. Each run still uses an article count, with no fixed collection-time window. GitHub's overall job-duration limit also applies.
 
 Set these repository **Settings → Secrets and variables → Actions → Variables** to change daily defaults:
 

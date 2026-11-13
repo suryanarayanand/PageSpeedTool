@@ -12,6 +12,7 @@ The update adds:
 - A `PAGESPEED_RSS_FEEDS` repository variable for daily runs.
 - Direct portal, Excel, and saved JSON links in the deployment summary.
 - Total HTTP request deadlines so stalled requests cannot wait indefinitely.
+- Scheduled runs every day at 9:00 AM and 6:00 PM India time.
 
 ## Apply the update
 
