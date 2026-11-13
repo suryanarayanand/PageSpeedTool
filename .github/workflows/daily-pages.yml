@@ -33,8 +33,8 @@ name: Daily PageSpeed reports
         default: true
         type: boolean
   schedule:
-    - cron: '30 3 * * *'   # 09:00 India time
-    - cron: '30 12 * * *'  # 18:00 India time
+     - cron: '30 3 * * *'   # 9:00 AM IST
+     - cron: '30 12 * * *'  # 6:00 PM IST
 
 permissions:
   contents: read
