@@ -33,7 +33,7 @@ class ReporterTests(unittest.TestCase):
                                          BytesIO(json.dumps(error_body).encode()))
         with patch('engine.urllib.request.urlopen', side_effect=failure) as request:
             with self.assertRaises(engine.FetchError) as raised:
-                engine.fetch('https://www.googleapis.com/pagespeedonline/v5/runPagespeed?key=secret-test-key')
+                engine._fetch_in_process('https://www.googleapis.com/pagespeedonline/v5/runPagespeed?key=secret-test-key')
         self.assertEqual(raised.exception.status, 403)
         self.assertIn('API_KEY_SERVICE_BLOCKED', str(raised.exception))
         self.assertIn('PageSpeed Insights API', str(raised.exception))
@@ -47,7 +47,7 @@ class ReporterTests(unittest.TestCase):
                                          BytesIO(json.dumps(payload).encode()))
         with patch('engine.urllib.request.urlopen', side_effect=failure):
             with self.assertRaisesRegex(engine.FetchError, 'Enable Chrome UX Report API'):
-                engine.fetch('https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=test-key')
+                engine._fetch_in_process('https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=test-key')
 
     def test_feed_denials_do_not_copy_untrusted_response_bodies_into_reports(self):
         import urllib.error
@@ -55,7 +55,7 @@ class ReporterTests(unittest.TestCase):
                                          BytesIO(b'<html>private-body</html>'))
         with patch('engine.urllib.request.urlopen', side_effect=failure):
             with self.assertRaises(engine.FetchError) as raised:
-                engine.fetch('https://example.com/feed')
+                engine._fetch_in_process('https://example.com/feed')
         self.assertNotIn('private-body', str(raised.exception))
         self.assertNotIn('Google reason', str(raised.exception))
 

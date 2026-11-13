@@ -46,6 +46,25 @@ Frontline must have an RSS feed supplied in the RSS input, the
 
 ## Daily updates
 
+The report website is your viewing page; the Actions page shows execution and
+deployment logs. After both **build** and **deploy** finish, use the links under
+**Published PageSpeed reports** on the run's Summary page. The portal provides
+the progressive HTML report, cumulative Excel, and individual dated reports.
+Canonical measurements are stored as JSON under `runs/` on the separate
+`report-history` branch. The temporary Pages deployment artifact is deleted
+after successful deployment; use the portal downloads for reports.
+
+While **build** is running and **deploy** is waiting, the portal still shows the
+previous publication. A green workflow status means deployment succeeded;
+review the measurement summary for unavailable metrics or failed audits.
+
+HTTP requests now have a total deadline covering DNS resolution, connection,
+response reading, and all retries: 30 seconds for each feed request and 120
+seconds for each API request. A stalled request is stopped and recorded as an
+error while other checks continue. Browser collection keeps its separate
+documented per-device waits. The workflow does not impose a collection-time
+budget on the whole article-count run.
+
 The default schedule starts daily at **09:00 India time (03:30 UTC)**. GitHub can delay scheduled jobs; this is not a guaranteed execution time. Each run still uses an article count, with no fixed collection-time window. GitHub's overall job-duration limit also applies.
 
 Set these repository **Settings → Secrets and variables → Actions → Variables** to change daily defaults:

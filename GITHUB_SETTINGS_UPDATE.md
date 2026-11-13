@@ -10,6 +10,8 @@ The update adds:
   and saved feed configuration.
 - An optional `rss_feeds` input in **Run workflow** to change feeds for a run.
 - A `PAGESPEED_RSS_FEEDS` repository variable for daily runs.
+- Direct portal, Excel, and saved JSON links in the deployment summary.
+- Total HTTP request deadlines so stalled requests cannot wait indefinitely.
 
 ## Apply the update
 
@@ -26,6 +28,10 @@ The update adds:
    templates/public_dashboard.html
    test_static_cloud.py
    DEPLOYMENT.md
+   engine.py
+   network_fetch.py
+   test_engine.py
+   test_network_fetch.py
    ```
 
    Alternatively, edit or upload the corresponding files using GitHub's web
@@ -65,7 +71,9 @@ profiles.
 
 ## Checked locally
 
-All 56 automated tests pass. Workflow YAML and RSS input wiring were checked.
+All 59 automated tests pass, including stopping a deliberately stalled network
+worker. Workflow YAML, daily scheduling, RSS input wiring, and the generated
+deployment-summary report links were checked.
 The static portal was rebuilt using existing saved measurements. GitHub could
 not be reached from this Codex session, so the source update has not been pushed
 or deployed and a live GitHub audit has not been verified.

@@ -15,6 +15,7 @@ import urllib.request
 import uuid
 import xml.etree.ElementTree as ET
 import sys
+import subprocess
 
 if __name__ == "__main__":
     # Keep exception classes shared with the browser collector when launched as a script.
@@ -29,6 +30,7 @@ from storage import ROOT, OUTPUT
 REPORT_LAYOUT_VERSION = 3
 
 WORKER_INSTANCE = uuid.uuid4().hex
+NETWORK_WORKER = Path(__file__).with_name('network_fetch.py')
 CATEGORIES = ["performance", "accessibility", "best-practices", "seo"]
 # Report name, PSI field, CrUX field, unit divisor, good maximum, moderate maximum.
 FIELD = [
@@ -114,7 +116,7 @@ def google_api_failure(error, url):
     return ''
 
 
-def fetch(url, payload=None, timeout=120, attempts=3):
+def _fetch_in_process(url, payload=None, timeout=120, attempts=3):
     """Bounded retries; never include request URLs (which may contain keys) in errors."""
     data = json.dumps(payload).encode() if payload is not None else None
     headers = {"User-Agent": "Mozilla/5.0 RSS-PageSpeed-Reporter/1.0", "Accept": "*/*"}
@@ -146,6 +148,27 @@ def fetch(url, payload=None, timeout=120, attempts=3):
                 raise error from None
             delay = 2 ** (attempt + 1)
         time.sleep(delay)
+
+
+def fetch(url, payload=None, timeout=120, attempts=3):
+    """Limit the entire request, including DNS, response reads, and retries."""
+    job = json.dumps({'url': url, 'payload': payload, 'timeout': timeout, 'attempts': attempts}).encode()
+    try:
+        result = subprocess.run([sys.executable, str(NETWORK_WORKER)], input=job,
+                                capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise FetchError(f'Network request exceeded its total time limit ({timeout:g}s).') from None
+    except OSError:
+        raise FetchError('Could not start the network request worker. Check the Python installation.') from None
+    if result.returncode:
+        if result.returncode == 2:
+            try:
+                error = json.loads(result.stderr)
+                raise FetchError(error['message'], error.get('status'))
+            except (ValueError, KeyError, TypeError):
+                pass
+        raise FetchError('Network request worker failed. Check network access and Python dependencies.')
+    return result.stdout
 
 
 def fetch_json(url, payload=None):

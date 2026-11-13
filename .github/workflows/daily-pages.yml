@@ -117,6 +117,27 @@ jobs:
       - name: Publish the report portal
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Show report and data links
+        env:
+          REPORT_PORTAL_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          portal = os.environ['REPORT_PORTAL_URL'].rstrip('/') + '/'
+          repository = 'https://github.com/' + os.environ['GITHUB_REPOSITORY']
+          links = [
+              '## Published PageSpeed reports',
+              '[Open report portal](' + portal + ')',
+              '[View progressive report](' + portal + 'progressive/report.html)',
+              '[Download cumulative Excel](' + portal + 'progressive/report.xlsx)',
+              '[Saved dated measurements (JSON)](' + repository + '/tree/report-history/runs)',
+              'Use Daily runs on the portal to select a date and download an individual report.',
+              'A successful deployment publishes available measurements and failure details. Check the measurement summary for audit success.',
+          ]
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as summary:
+              summary.write('\n\n'.join(links) + '\n')
+          PY
       - name: Remove the temporary deployment artifact
         if: success() && needs.build.outputs.artifact_id != ''
         env:

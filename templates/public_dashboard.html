@@ -21,6 +21,7 @@
 <p id="summary" role="status">Loading report history...</p>
 <div id="downloads" class="report-links" hidden><a id="progressive-html" class="button" href="{{ progressive_prefix|default('/progressive/') }}report.html">View progressive report</a><a id="progressive-excel" class="button" href="{{ progressive_prefix|default('/progressive/') }}report.xlsx">Download Excel</a></div>
 <p>Each article run adds dated rows. Earlier results are retained. N/A means a measurement was unavailable.</p>
+{% if repository_url %}<p><a href="{{ repository_url }}/tree/report-history/runs">Browse saved measurement data (JSON)</a>. New reports appear here after the audit and deployment finish.</p>{% endif %}
 </section>
 <section class="panel"><h2>Daily runs</h2><label for="date-filter">Date (India time)</label><input type="date" id="date-filter"><p>Leave the date empty to see recent runs.</p><div id="runs"><p>Loading recent runs...</p></div></section>
 </main>
