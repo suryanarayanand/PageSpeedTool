@@ -1,0 +1,100 @@
+{
+  "config": {
+    "collector": "api",
+    "feeds": {
+      "TH": [
+        "https://www.thehindu.com/feeder/default.rss",
+        "https://www.thehindu.com/news/national/feeder/default.rss"
+      ]
+    },
+    "sample_size": 1,
+    "seed": null,
+    "strategies": [
+      "mobile",
+      "desktop"
+    ]
+  },
+  "errors": [],
+  "finished": "2026-11-27T06:10:33+00:00",
+  "id": "20261127_060632_a2db94bc",
+  "message": "No measurements collected. See failure details and retry.",
+  "results": [
+    {
+      "Accessibility": null,
+      "Best Practices": null,
+      "CLS": null,
+      "CWV assessment": "Unavailable",
+      "Collection method": "PageSpeed API",
+      "Device": "mobile",
+      "Error": "Network request exceeded its total time limit (120s).",
+      "FCP (s)": null,
+      "Field URL": "",
+      "Field period": "",
+      "Field source": "Unavailable",
+      "Final URL": "",
+      "INP (ms)": null,
+      "LCP (s)": null,
+      "Lab CLS": null,
+      "Lab FCP (s)": null,
+      "Lab LCP (s)": null,
+      "Lab Speed Index (s)": null,
+      "Lab TBT (ms)": null,
+      "Lighthouse version": "",
+      "Measured UTC": "2026-11-27T06:08:33+00:00",
+      "PageSpeed link": "https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fwww.thehindu.com%2Fnews%2Fnational%2Futtar-pradesh%2Fsenior-ips-alok-singh-appointed-uppsc-chairman%2Farticle71749172.ece&form_factor=mobile",
+      "Performance": null,
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/news/national/feeder/default.rss",
+      "SEO": null,
+      "Status": "Error",
+      "TTFB (s)": null,
+      "Title": "Senior IPS Alok Singh appointed UPPSC chairman",
+      "URL": "https://www.thehindu.com/news/national/uttar-pradesh/senior-ips-alok-singh-appointed-uppsc-chairman/article71749172.ece",
+      "Warnings": "; Real-user data unavailable. Configure CRUX_API_KEY to query CrUX directly."
+    },
+    {
+      "Accessibility": null,
+      "Best Practices": null,
+      "CLS": null,
+      "CWV assessment": "Unavailable",
+      "Collection method": "PageSpeed API",
+      "Device": "desktop",
+      "Error": "Network request exceeded its total time limit (120s).",
+      "FCP (s)": null,
+      "Field URL": "",
+      "Field period": "",
+      "Field source": "Unavailable",
+      "Final URL": "",
+      "INP (ms)": null,
+      "LCP (s)": null,
+      "Lab CLS": null,
+      "Lab FCP (s)": null,
+      "Lab LCP (s)": null,
+      "Lab Speed Index (s)": null,
+      "Lab TBT (ms)": null,
+      "Lighthouse version": "",
+      "Measured UTC": "2026-11-27T06:10:33+00:00",
+      "PageSpeed link": "https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fwww.thehindu.com%2Fnews%2Fnational%2Futtar-pradesh%2Fsenior-ips-alok-singh-appointed-uppsc-chairman%2Farticle71749172.ece&form_factor=desktop",
+      "Performance": null,
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/news/national/feeder/default.rss",
+      "SEO": null,
+      "Status": "Error",
+      "TTFB (s)": null,
+      "Title": "Senior IPS Alok Singh appointed UPPSC chairman",
+      "URL": "https://www.thehindu.com/news/national/uttar-pradesh/senior-ips-alok-singh-appointed-uppsc-chairman/article71749172.ece",
+      "Warnings": "; Real-user data unavailable. Configure CRUX_API_KEY to query CrUX directly."
+    }
+  ],
+  "samples": [
+    {
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/news/national/feeder/default.rss",
+      "Title": "Senior IPS Alok Singh appointed UPPSC chairman",
+      "URL": "https://www.thehindu.com/news/national/uttar-pradesh/senior-ips-alok-singh-appointed-uppsc-chairman/article71749172.ece"
+    }
+  ],
+  "seed": 4006482350,
+  "started": "2026-11-27T06:06:32+00:00",
+  "status": "Failed"
+}
