@@ -1,0 +1,100 @@
+{
+  "config": {
+    "collector": "api",
+    "feeds": {
+      "TH": [
+        "https://www.thehindu.com/feeder/default.rss",
+        "https://www.thehindu.com/news/national/feeder/default.rss"
+      ]
+    },
+    "sample_size": 1,
+    "seed": null,
+    "strategies": [
+      "mobile",
+      "desktop"
+    ]
+  },
+  "errors": [],
+  "finished": "2026-11-27T10:31:21+00:00",
+  "id": "20261127_102809_7d8e2880",
+  "message": "Partial report: 1/2 complete checks. Available measurements are saved; review the missing values.",
+  "results": [
+    {
+      "Accessibility": 78.0,
+      "Best Practices": 35.0,
+      "CLS": 0.01,
+      "CWV assessment": "Passed",
+      "Collection method": "PageSpeed API",
+      "Device": "mobile",
+      "Error": "",
+      "FCP (s)": 1.476,
+      "Field URL": "https://www.thehindu.com",
+      "Field period": "",
+      "Field source": "PSI / URL",
+      "Final URL": "https://www.thehindu.com/opinion/op-ed/what-anthropics-15-trillion-ipo-means-for-developing-countries/article71747560.ece",
+      "INP (ms)": 171.0,
+      "LCP (s)": 2.372,
+      "Lab CLS": 0.11175633963615536,
+      "Lab FCP (s)": 12.367813632566774,
+      "Lab LCP (s)": 12.367813632566774,
+      "Lab Speed Index (s)": 19.76658410974956,
+      "Lab TBT (ms)": 2976.0000000000073,
+      "Lighthouse version": "13.6.0",
+      "Measured UTC": "2026-11-27T10:28:12.853Z",
+      "PageSpeed link": "https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fwww.thehindu.com%2Fopinion%2Fop-ed%2Fwhat-anthropics-15-trillion-ipo-means-for-developing-countries%2Farticle71747560.ece&form_factor=mobile",
+      "Performance": 22.0,
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/feeder/default.rss",
+      "SEO": 92.0,
+      "Status": "OK",
+      "TTFB (s)": 0.503,
+      "Title": "What Anthropic’s $1.5-trillion IPO means for developing countries",
+      "URL": "https://www.thehindu.com/opinion/op-ed/what-anthropics-15-trillion-ipo-means-for-developing-countries/article71747560.ece",
+      "Warnings": "The page loaded too slowly to finish within the time limit. Results may be incomplete."
+    },
+    {
+      "Accessibility": null,
+      "Best Practices": null,
+      "CLS": null,
+      "CWV assessment": "Unavailable",
+      "Collection method": "PageSpeed API",
+      "Device": "desktop",
+      "Error": "Network request exceeded its total time limit (120s).",
+      "FCP (s)": null,
+      "Field URL": "",
+      "Field period": "",
+      "Field source": "Unavailable",
+      "Final URL": "",
+      "INP (ms)": null,
+      "LCP (s)": null,
+      "Lab CLS": null,
+      "Lab FCP (s)": null,
+      "Lab LCP (s)": null,
+      "Lab Speed Index (s)": null,
+      "Lab TBT (ms)": null,
+      "Lighthouse version": "",
+      "Measured UTC": "2026-11-27T10:31:21+00:00",
+      "PageSpeed link": "https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fwww.thehindu.com%2Fopinion%2Fop-ed%2Fwhat-anthropics-15-trillion-ipo-means-for-developing-countries%2Farticle71747560.ece&form_factor=desktop",
+      "Performance": null,
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/feeder/default.rss",
+      "SEO": null,
+      "Status": "Error",
+      "TTFB (s)": null,
+      "Title": "What Anthropic’s $1.5-trillion IPO means for developing countries",
+      "URL": "https://www.thehindu.com/opinion/op-ed/what-anthropics-15-trillion-ipo-means-for-developing-countries/article71747560.ece",
+      "Warnings": "; Real-user data unavailable. Configure CRUX_API_KEY to query CrUX directly."
+    }
+  ],
+  "samples": [
+    {
+      "Publication": "TH",
+      "RSS feed": "https://www.thehindu.com/feeder/default.rss",
+      "Title": "What Anthropic’s $1.5-trillion IPO means for developing countries",
+      "URL": "https://www.thehindu.com/opinion/op-ed/what-anthropics-15-trillion-ipo-means-for-developing-countries/article71747560.ece"
+    }
+  ],
+  "seed": 554861045,
+  "started": "2026-11-27T10:28:09+00:00",
+  "status": "Partial"
+}
